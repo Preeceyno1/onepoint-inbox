@@ -27,11 +27,15 @@ const openai = new OpenAI({
 });
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173' } });
+const io = new Server(server, {
+  cors: {
+    origin: '*'
+  }
+});
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const DEMO_EMAIL = 'demo@onepoint.app';
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '2mb' }));
 
 function tokenFor(user) { return jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' }); }
