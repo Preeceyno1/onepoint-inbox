@@ -9,7 +9,22 @@ import { v4 as uuid } from 'uuid';
 import { readDb, writeDb, publicUser } from './db.js';
 import { markWhatsAppRead } from './connectors/whatsapp.js';
 import { markFacebookOrInstagramRead, normaliseMetaWebhook } from './connectors/meta.js';
+import OpenAI from 'openai';
+import {
+  testDatabase,
+  getMessages,
+  createMessage,
+  markMessageRead,
+  addMessageNote,
+  archiveMessage,
+  moveMessageToFolder,
+  getFolders,
+  createFolder
+} from './database.js';
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173' } });
@@ -48,6 +63,15 @@ io.use((socket, next) => {
 io.on('connection', socket => socket.join(socket.user.sub));
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
+app.get('/api/db-health', async (_, res) => {
+  try {
+    const result = await testDatabase();
+    res.json({ ok: true, databaseTime: result.now });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
@@ -79,42 +103,46 @@ app.patch('/api/connectors/:source', auth, (req, res) => {
   connector.enabled = Boolean(req.body.enabled);
   writeDb(db); emitInbox(req.user.sub); res.json(connector);
 });
-app.get('/api/messages', auth, (req, res) => res.json(visibleMessages(readDb(), req.user.sub)));
+app.get('/api/messages', auth, async (req, res) => {
+  const messages = await getMessages(req.user.sub);
+  res.json(messages.map(dbMessageToFrontend));
+});
 app.get('/api/analytics', auth, (req, res) => {
   const db = readDb(); const visible = visibleMessages(db, req.user.sub);
   res.json({ total: visible.length, unread: visible.filter(m=>!m.read).length, urgent: visible.filter(m=>['urgent','high'].includes(m.priority)).length, sales: visible.filter(m=>m.intent==='sales').length, sources: db.connectors.filter(c=>c.userId===req.user.sub).map(c=>({ source:c.source, enabled:c.enabled, count: visible.filter(m=>m.source===c.source).length })) });
 });
-app.post('/api/messages/mock', auth, (req, res) => {
-  const db = readDb(); const msg = normaliseMessage(req.user.sub, req.body); db.messages.unshift(msg); writeDb(db); emitInbox(req.user.sub); res.status(201).json(msg);
+app.post('/api/messages/mock', auth, async (req, res) => {
+  const msg = normaliseMessage(req.user.sub, req.body);
+  const saved = await createMessage(msg);
+  emitInbox(req.user.sub);
+  res.status(201).json(dbMessageToFrontend(saved));
 });
 app.post('/api/messages/:id/read', auth, async (req, res) => {
-  const db = readDb(); const msg = db.messages.find(m => m.userId === req.user.sub && m.id === req.params.id);
-  if (!msg) return res.status(404).json({ error: 'Message not found' });
-  msg.read = true; writeDb(db); emitInbox(req.user.sub);
-  try { if (msg.source === 'whatsapp') await markWhatsAppRead(msg.sourceMessageId); if (msg.source === 'facebook' || msg.source === 'instagram') await markFacebookOrInstagramRead(msg); res.json({ ...msg, syncedToSource: true }); }
-  catch (error) { res.status(502).json({ ...msg, syncedToSource: false, syncError: error.message }); }
+  const msg = await markMessageRead(req.params.id);
+
+  if (!msg) {
+    return res.status(404).json({ error: 'Message not found' });
+  }
+
+  emitInbox(req.user.sub);
+  res.json({ ...dbMessageToFrontend(msg), syncedToSource: true });
 });
 app.patch('/api/messages/:id', auth, (req, res) => {
   const db = readDb(); const msg = db.messages.find(m => m.userId === req.user.sub && m.id === req.params.id);
   if (!msg) return res.status(404).json({ error: 'Message not found' });
   Object.assign(msg, req.body); writeDb(db); emitInbox(req.user.sub); res.json(msg);
 });
-app.post('/api/messages/:id/notes', auth, (req, res) => {
-  const db = readDb(); const msg = db.messages.find(m => m.userId === req.user.sub && m.id === req.params.id);
-  if (!msg) return res.status(404).json({ error: 'Message not found' });
-  const note = String(req.body.note || '').trim(); if (!note) return res.status(400).json({ error: 'Note is required' });
-  msg.notes.push(note); writeDb(db); emitInbox(req.user.sub); res.json(msg);
-});
-app.post('/api/ai/suggest-replies', auth, (req, res) => {
-  const { message, tone = 'friendly' } = req.body; const text = message?.text || '';
-  const templates = {
-    friendly: [`Thanks for messaging! Yes, I can help with that.`, `Hi ${message?.senderName?.split(' ')[0] || 'there'}, thanks for reaching out — let me check this for you now.`, `Absolutely, I’ll sort that for you.`],
-    professional: [`Thanks for your message. I’ll review this and come back to you shortly.`, `Hello, thank you for getting in touch. I can assist with this.`, `I’ve received your message and will confirm the details shortly.`],
-    sales: [`Yes, it’s available. Would you like me to reserve it for you?`, `Thanks for asking — I can send the details and payment options now.`, `Great timing, I can help you place the order today.`],
-    short: [`Yes, no problem.`, `I’ll check now.`, `Thanks — I’ll confirm shortly.`]
-  };
-  const smart = /available|price|pay|buy|collect/i.test(text) ? 'sales' : tone;
-  res.json({ tone: smart, suggestions: templates[smart] || templates.friendly });
+app.post('/api/messages/:id/notes', auth, async (req, res) => {
+  const note = String(req.body.note || '').trim();
+
+  if (!note) {
+    return res.status(400).json({ error: 'Note is required' });
+  }
+
+  await addMessageNote(req.params.id, note);
+  emitInbox(req.user.sub);
+
+  res.json({ ok: true });
 });
 
 app.get('/webhooks/meta', (req, res) => {
@@ -131,6 +159,173 @@ app.post('/webhooks/whatsapp', (req, res) => {
   if (incoming) { const db = readDb(); db.messages.unshift(normaliseMessage(userId, { source: 'whatsapp', sourceMessageId: incoming.id, conversationId: incoming.from, senderName: contact?.profile?.name || incoming.from, senderHandle: incoming.from, text: incoming.text?.body || '[Unsupported WhatsApp message type]' })); writeDb(db); emitInbox(userId); }
   res.sendStatus(200);
 });
+async function askOpenAI(instruction, input) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is missing from backend/.env');
+  }
 
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4.1-mini',
+    messages: [
+      {
+        role: 'system',
+        content: instruction
+      },
+      {
+        role: 'user',
+        content: input
+      }
+    ]
+  });
+
+  return completion.choices?.[0]?.message?.content || '';
+}
+app.post('/api/ai/suggest-replies', auth, async (req, res) => {
+  try {
+    const { message, tone = 'friendly' } = req.body;
+
+    const prompt = `
+Customer message:f
+${message?.text || ''}
+
+Customer name:
+${message?.senderName || 'Customer'}
+
+Tone:
+${tone}
+
+Create exactly 3 short reply options.
+Return each reply on a new line.
+Do not number them.
+`;
+
+    const output = await askOpenAI(
+      'You are an expert customer service and sales reply assistant.',
+      prompt
+    );
+
+    const suggestions = output
+      .split('\n')
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+    res.json({ suggestions });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'AI reply generation failed' });
+  }
+});
+
+app.post('/api/ai/improve-reply', auth, async (req, res) => {
+  try {
+    const { text = '', mode = 'grammar' } = req.body;
+
+    if (!text.trim()) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    const instructions = {
+      grammar: 'Fix spelling, grammar and punctuation while keeping the same meaning.',
+      punctuation: 'Improve only punctuation, spacing and sentence flow.',
+      professional: 'Rewrite in a clear, professional business tone.',
+      friendly: 'Rewrite in a warm, friendly and natural tone.',
+      short: 'Make this reply shorter while keeping the meaning.',
+      persuasive: 'Rewrite to sound more persuasive and sales-focused without being pushy.',
+      apology: 'Rewrite as a polite apology response that sounds sincere.'
+    };
+
+    const improved = await askOpenAI(
+      instructions[mode] || instructions.grammar,
+      text
+    );
+
+    res.json({
+      mode,
+      improved
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'AI improvement failed' });
+  }
+});
+
+app.post('/api/ai/summarise-message', auth, async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    const summary = await askOpenAI(
+      'Summarise this customer message in one short useful sentence for a business owner.',
+      message?.text || ''
+    );
+
+    res.json({ summary });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'AI summary failed' });
+  }
+});
+function dbMessageToFrontend(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    source: row.source,
+    sourceMessageId: row.source_message_id,
+    conversationId: row.conversation_id,
+    senderName: row.sender_name,
+    senderHandle: row.sender_handle,
+    text: row.text,
+    receivedAt: row.received_at,
+    read: row.read,
+    archived: row.archived,
+    folderId: row.folder_id,
+    priority: row.priority,
+    intent: row.intent,
+    avatar: row.avatar,
+    assignedTo: row.assigned_to,
+    snoozedUntil: row.snoozed_until,
+    notes: []
+  };
+}
+app.get('/api/folders', auth, async (req, res) => {
+  const folders = await getFolders(req.user.sub);
+  res.json(folders);
+});
+
+app.post('/api/folders', auth, async (req, res) => {
+  const name = String(req.body.name || '').trim();
+  const parentId = req.body.parentId || null;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Folder name is required' });
+  }
+
+  const folder = await createFolder(req.user.sub, name, parentId);
+  res.status(201).json(folder);
+});
+
+app.post('/api/messages/:id/archive', auth, async (req, res) => {
+  const msg = await archiveMessage(req.params.id);
+
+  if (!msg) {
+    return res.status(404).json({ error: 'Message not found' });
+  }
+
+  emitInbox(req.user.sub);
+  res.json(dbMessageToFrontend(msg));
+});
+
+app.post('/api/messages/:id/move-folder', auth, async (req, res) => {
+  const folderId = req.body.folderId || null;
+
+  const msg = await moveMessageToFolder(req.params.id, folderId);
+
+  if (!msg) {
+    return res.status(404).json({ error: 'Message not found' });
+  }
+
+  emitInbox(req.user.sub);
+  res.json(dbMessageToFrontend(msg));
+});
 const port = process.env.PORT || 4000;
 server.listen(port, () => console.log(`OnePoint Inbox backend running on http://localhost:${port}`));

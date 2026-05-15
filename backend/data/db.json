@@ -57,9 +57,27 @@
   ],
   "messages": [
     {
+      "id": "61b574ce-e6ed-4683-a88a-3b078f9bce42",
+      "userId": "1c640d62-832d-4b72-bceb-3fac8e9e4ef9",
+      "read": true,
+      "priority": "normal",
+      "intent": "sales",
+      "assignedTo": "Unassigned",
+      "notes": [],
+      "snoozedUntil": null,
+      "avatar": "SL",
+      "receivedAt": "2026-05-13T20:35:08.667Z",
+      "source": "facebook",
+      "senderName": "Sophie Lane",
+      "senderHandle": "Facebook user",
+      "text": "Do you have any more photos before I buy?",
+      "conversationId": "demo-3",
+      "sourceMessageId": "8906e568-8eed-4602-af17-fa9125401ffa"
+    },
+    {
       "id": "3394571a-6670-433f-a78f-40c653d0dbdd",
       "userId": "1c640d62-832d-4b72-bceb-3fac8e9e4ef9",
-      "read": false,
+      "read": true,
       "priority": "high",
       "intent": "sales",
       "assignedTo": "Unassigned",
