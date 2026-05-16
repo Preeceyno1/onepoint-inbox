@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   Bell,
-  Bot,
-  CheckCircle2,
   ChevronLeft,
   FileText,
   Inbox,
@@ -48,6 +46,47 @@ const demoPeople = [
   { name: 'Water Gardens', avatar: 'WG' }
 ];
 
+function analyseMessage(message) {
+  const text = `${message.text || ''} ${message.senderName || ''}`.toLowerCase();
+
+  let score = 20;
+  let type = 'General';
+  let action = 'Review message';
+  let reason = 'No urgent action detected';
+
+  if (/urgent|asap|today|now|wrong|complaint|refund|problem|issue|help/.test(text)) {
+    score += 45;
+    type = 'Priority';
+    action = 'Reply quickly';
+    reason = 'This may need immediate attention';
+  }
+
+  if (/price|cost|buy|available|order|book|booking|quote|pay|collect|reserve/.test(text)) {
+    score += 35;
+    type = 'Sales lead';
+    action = 'Send offer or booking info';
+    reason = 'This looks like a money-making opportunity';
+  }
+
+  if (/tomorrow|later|next week|remind|follow up|let you know/.test(text)) {
+    score += 20;
+    type = 'Follow-up';
+    action = 'Create follow-up reminder';
+    reason = 'This message may need resurfacing later';
+  }
+
+  if (/thanks|thank you|perfect|great|ok|okay/.test(text)) {
+    score -= 15;
+    type = 'Low priority';
+    action = 'Archive if finished';
+    reason = 'This looks like a completed conversation';
+  }
+
+  score = Math.max(1, Math.min(99, score));
+
+  return { score, type, action, reason };
+}
+
 export default function App() {
   const [auth, setAuth] = useState(() =>
     JSON.parse(localStorage.getItem('onepoint_auth') || 'null')
@@ -76,20 +115,31 @@ export default function App() {
 function OnePointMobile({ auth, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [connectors, setConnectors] = useState([]);
+
   const [sourceFilter, setSourceFilter] = useState('all');
   const [smartFilter, setSmartFilter] = useState('all');
+
   const [folder, setFolder] = useState('inbox');
   const [query, setQuery] = useState('');
+
   const [screen, setScreen] = useState('inbox');
   const [selectedMessage, setSelectedMessage] = useState(null);
+
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
+
   const [sentMessages, setSentMessages] = useState([]);
   const [draftMessages, setDraftMessages] = useState([]);
   const [deletedMessages, setDeletedMessages] = useState([]);
+
+  const [deletedIds, setDeletedIds] = useState([]);
   const [starredIds, setStarredIds] = useState([]);
+
   const [replyDraft, setReplyDraft] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState([]);
+
+  const [calmMode, setCalmMode] = useState(false);
+  const [inboxMode, setInboxMode] = useState('personal');
 
   const headers = {
     Authorization: `Bearer ${auth.token}`,
@@ -120,44 +170,40 @@ function OnePointMobile({ auth, onLogout }) {
     [connectors]
   );
 
+  const liveMessages = useMemo(
+    () => messages.filter((m) => !deletedIds.includes(m.id)),
+    [messages, deletedIds]
+  );
+
   const counts = useMemo(() => {
-    const live = messages.filter((m) => !m.archived);
+    const live = liveMessages.filter((m) => !m.archived);
 
     return {
       all: live.length,
       unread: live.filter((m) => !m.read).length,
-      priority: live.filter((m) => ['urgent', 'high'].includes(m.priority)).length,
+      priority: live.filter((m) => analyseMessage(m).score >= 65).length,
       mentions: live.filter((m) => /@|mention|tag/i.test(m.text || '')).length,
       groups: live.filter((m) => /team|group|everyone|meeting/i.test(m.text || '')).length,
-      archived: messages.filter((m) => m.archived).length,
+      archived: liveMessages.filter((m) => m.archived).length,
       sent: sentMessages.length,
       drafts: draftMessages.length,
       deleted: deletedMessages.length
     };
-  }, [messages, sentMessages, draftMessages, deletedMessages]);
+  }, [liveMessages, sentMessages, draftMessages, deletedMessages]);
 
   const visibleMessages = useMemo(() => {
     if (folder === 'sent') return sentMessages;
     if (folder === 'drafts') return draftMessages;
     if (folder === 'deleted') return deletedMessages;
 
-    return messages.filter((message) => {
+    let result = liveMessages.filter((message) => {
       const text = `${message.senderName} ${message.senderHandle} ${message.text} ${message.source}`.toLowerCase();
+      const intelligence = analyseMessage(message);
 
       const matchesQuery = text.includes(query.toLowerCase());
-
-      const matchesSource =
-        sourceFilter === 'all' || message.source === sourceFilter;
-
-      const sourceAllowed =
-        sourceFilter === 'all'
-          ? enabledSources.includes(message.source)
-          : true;
-
-      const matchesFolder =
-        folder === 'archive'
-          ? message.archived
-          : !message.archived;
+      const matchesSource = sourceFilter === 'all' || message.source === sourceFilter;
+      const sourceAllowed = sourceFilter === 'all' ? enabledSources.includes(message.source) : true;
+      const matchesFolder = folder === 'archive' ? message.archived : !message.archived;
 
       const matchesSmart =
         smartFilter === 'all'
@@ -165,17 +211,30 @@ function OnePointMobile({ auth, onLogout }) {
           : smartFilter === 'unread'
           ? !message.read
           : smartFilter === 'priority'
-          ? ['urgent', 'high'].includes(message.priority)
+          ? intelligence.score >= 65
           : smartFilter === 'mentions'
           ? /@|mention|tag/i.test(message.text || '')
           : smartFilter === 'groups'
           ? /team|group|everyone|meeting/i.test(message.text || '')
           : true;
 
-      return matchesQuery && matchesSource && sourceAllowed && matchesFolder && matchesSmart;
+      const matchesMode =
+        inboxMode === 'business'
+          ? /price|cost|buy|available|order|book|booking|quote|pay|collect|reserve|project|customer|client|report|delivery|address/i.test(
+              message.text || ''
+            )
+          : true;
+
+      return matchesQuery && matchesSource && sourceAllowed && matchesFolder && matchesSmart && matchesMode;
     });
+
+    if (calmMode) {
+      result = result.filter((message) => analyseMessage(message).score >= 55);
+    }
+
+    return result.sort((a, b) => analyseMessage(b).score - analyseMessage(a).score);
   }, [
-    messages,
+    liveMessages,
     sentMessages,
     draftMessages,
     deletedMessages,
@@ -183,7 +242,9 @@ function OnePointMobile({ auth, onLogout }) {
     sourceFilter,
     enabledSources,
     folder,
-    smartFilter
+    smartFilter,
+    calmMode,
+    inboxMode
   ]);
 
   async function toggleConnector(source, enabled) {
@@ -197,7 +258,7 @@ function OnePointMobile({ auth, onLogout }) {
   }
 
   async function archiveMessage(message) {
-    if (folder === 'sent') return;
+    if (folder === 'sent' || folder === 'drafts' || folder === 'deleted') return;
 
     await fetch(`${API}/api/messages/${message.id}/archive`, {
       method: 'POST',
@@ -207,14 +268,9 @@ function OnePointMobile({ auth, onLogout }) {
     await load();
   }
 
-  async function deleteLocalMessage(message) {
-    setDeletedMessages((current) => [
-      {
-        ...message,
-        deletedAt: new Date().toISOString()
-      },
-      ...current
-    ]);
+  function deleteMessage(message) {
+    setDeletedMessages((current) => [{ ...message, deletedAt: new Date().toISOString() }, ...current]);
+    setDeletedIds((current) => [...current, message.id]);
 
     if (folder === 'drafts') {
       setDraftMessages((current) => current.filter((m) => m.id !== message.id));
@@ -326,7 +382,7 @@ function OnePointMobile({ auth, onLogout }) {
             setReplyDraft('');
             setAiSuggestions([]);
           }}
-          onDelete={() => deleteLocalMessage(selectedMessage)}
+          onDelete={() => deleteMessage(selectedMessage)}
           replyDraft={replyDraft}
           setReplyDraft={setReplyDraft}
           suggestions={aiSuggestions}
@@ -368,17 +424,21 @@ function OnePointMobile({ auth, onLogout }) {
           onOpenMenu={() => setSideMenuOpen(true)}
           onOpenMessage={setSelectedMessage}
           onArchive={archiveMessage}
+          onDelete={deleteMessage}
           onStar={toggleStar}
           starredIds={starredIds}
-          onCompose={() => setComposeOpen(true)}
           onAddDemo={addDemoMessage}
           setScreen={setScreen}
+          calmMode={calmMode}
+          setCalmMode={setCalmMode}
+          inboxMode={inboxMode}
+          setInboxMode={setInboxMode}
         />
       )}
 
       {screen === 'ai' && (
         <AiAssistantScreen
-          messages={messages}
+          messages={liveMessages}
           setSmartFilter={setSmartFilter}
           setScreen={setScreen}
         />
@@ -390,12 +450,11 @@ function OnePointMobile({ auth, onLogout }) {
           setQuery={setQuery}
           messages={visibleMessages}
           onOpenMessage={setSelectedMessage}
+          onDelete={deleteMessage}
         />
       )}
 
-      {screen === 'contacts' && (
-        <ContactsScreen people={demoPeople} />
-      )}
+      {screen === 'contacts' && <ContactsScreen people={demoPeople} />}
 
       {screen === 'settings' && (
         <SettingsScreen
@@ -416,7 +475,7 @@ function OnePointMobile({ auth, onLogout }) {
           }}
           onOpenMessage={setSelectedMessage}
           onArchive={archiveMessage}
-          onDelete={deleteLocalMessage}
+          onDelete={deleteMessage}
           starredIds={starredIds}
           onStar={toggleStar}
         />
@@ -449,8 +508,8 @@ function OnePointMobile({ auth, onLogout }) {
 
 function InboxScreen({
   auth,
-  connectors,
-  messages,
+  messages = [],
+  connectors = [],
   counts,
   query,
   setQuery,
@@ -462,17 +521,21 @@ function InboxScreen({
   onOpenMenu,
   onOpenMessage,
   onArchive,
+  onDelete,
   onStar,
   starredIds,
-  onCompose,
   onAddDemo,
-  setScreen
+  setScreen,
+  calmMode,
+  setCalmMode,
+  inboxMode,
+  setInboxMode
 }) {
   return (
     <>
       <div className="statusBar">
         <span>9:41</span>
-        <span>▮▮▮  Wi-Fi  ▰</span>
+        <span>▮▮▮ Wi-Fi ▰</span>
       </div>
 
       <header className="mainHeader">
@@ -499,6 +562,23 @@ function InboxScreen({
         </div>
       </header>
 
+      <div className="onePointCommand">
+        <button
+          className={calmMode ? 'commandButton active' : 'commandButton'}
+          onClick={() => setCalmMode(!calmMode)}
+        >
+          <Sparkles size={15} />
+          What needs me?
+        </button>
+
+        <button
+          className="commandButton"
+          onClick={() => setInboxMode(inboxMode === 'business' ? 'personal' : 'business')}
+        >
+          {inboxMode === 'business' ? 'Business mode' : 'Personal mode'}
+        </button>
+      </div>
+
       <div className="smartChips">
         <FilterChip active={smartFilter === 'all'} onClick={() => setSmartFilter('all')}>
           All <b>{counts.all}</b>
@@ -522,9 +602,7 @@ function InboxScreen({
       </div>
 
       <section className="connectedHeader">
-        <div>
-          <strong>Connected apps</strong>
-        </div>
+        <strong>Connected apps</strong>
         <button onClick={() => setScreen('settings')}>Manage</button>
       </section>
 
@@ -573,6 +651,7 @@ function InboxScreen({
             message={message}
             onOpen={() => onOpenMessage(message)}
             onArchive={() => onArchive(message)}
+            onDelete={() => onDelete(message)}
             onStar={() => onStar(message.id)}
             starred={starredIds.includes(message.id)}
           />
@@ -628,44 +707,14 @@ function SourceCard({ source, active, enabled = true, onClick, onToggle }) {
   );
 }
 
-function SwipeMessageRow({ message, onOpen, onArchive, onStar, starred }) {
-  const [startX, setStartX] = useState(null);
-  const [offset, setOffset] = useState(0);
-
+function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onStar, starred }) {
   const meta = sourceMeta[message.source] || sourceMeta.email;
   const Icon = meta.icon;
-
-  function onTouchStart(e) {
-    setStartX(e.touches[0].clientX);
-  }
-
-  function onTouchMove(e) {
-    if (startX === null) return;
-    const diff = e.touches[0].clientX - startX;
-    if (diff < 0) setOffset(Math.max(diff, -112));
-  }
-
-  function onTouchEnd() {
-    if (offset < -82) onArchive();
-    setOffset(0);
-    setStartX(null);
-  }
+  const intelligence = analyseMessage(message);
 
   return (
-    <div className="swipeShell">
-      <div className="archiveAction">
-        <Archive size={18} />
-        Archive
-      </div>
-
-      <button
-        className="messageRow"
-        style={{ transform: `translateX(${offset}px)` }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onClick={onOpen}
-      >
+    <div className="messageCard">
+      <button className="messageRow newReadableRow" onClick={onOpen}>
         <div className="platformIcon" style={{ background: meta.colour }}>
           <Icon />
         </div>
@@ -682,10 +731,20 @@ function SwipeMessageRow({ message, onOpen, onArchive, onStar, starred }) {
               <span className="countPill">!</span>
             ) : null}
           </div>
+
           <p>{message.text}</p>
+
           <small>
             <span style={{ color: meta.colour }}>{meta.label}</span> · {timeAgo(message.receivedAt)}
           </small>
+
+          <div className="intelligenceCard">
+            <div>
+              <strong>{intelligence.score}%</strong>
+              <span>{intelligence.type}</span>
+            </div>
+            <p>{intelligence.action}</p>
+          </div>
         </div>
 
         <button
@@ -699,6 +758,26 @@ function SwipeMessageRow({ message, onOpen, onArchive, onStar, starred }) {
           <Star size={16} />
         </button>
       </button>
+
+      <div className="messageQuickActions">
+        <button
+          className="quickAction archiveActionButton"
+          type="button"
+          onClick={onArchive}
+        >
+          <Archive size={15} />
+          Archive
+        </button>
+
+        <button
+          className="quickAction deleteActionButton"
+          type="button"
+          onClick={onDelete}
+        >
+          <Trash2 size={15} />
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
@@ -713,13 +792,12 @@ function ChatScreen({
   onGenerate
 }) {
   const meta = sourceMeta[message.source] || sourceMeta.email;
-  const Icon = meta.icon;
 
   return (
     <>
       <div className="statusBar">
         <span>9:41</span>
-        <span>▮▮▮  Wi-Fi  ▰</span>
+        <span>▮▮▮ Wi-Fi ▰</span>
       </div>
 
       <header className="chatHeader">
@@ -900,23 +978,10 @@ function SideMenu({ open, onClose, auth, folder, setFolder, counts, onLogout }) 
         </div>
 
         <MenuItem icon={Inbox} label="Inbox" count={counts.all} active={folder === 'inbox'} onClick={() => setFolder('inbox')} />
-        <MenuItem icon={Bell} label="Unread" count={counts.unread} active={false} onClick={() => setFolder('inbox')} />
-        <MenuItem icon={Star} label="Priority" count={counts.priority} active={false} onClick={() => setFolder('inbox')} />
-        <MenuItem icon={Users} label="Groups" count={counts.groups} active={false} onClick={() => setFolder('inbox')} />
-
-        <div className="menuDivider">Folders</div>
-
         <MenuItem icon={Archive} label="Archived" count={counts.archived} active={folder === 'archive'} onClick={() => setFolder('archive')} />
         <MenuItem icon={Send} label="Sent" count={counts.sent} active={folder === 'sent'} onClick={() => setFolder('sent')} />
         <MenuItem icon={FileText} label="Drafts" count={counts.drafts} active={folder === 'drafts'} onClick={() => setFolder('drafts')} />
         <MenuItem icon={Trash2} label="Deleted" count={counts.deleted} active={folder === 'deleted'} onClick={() => setFolder('deleted')} />
-        <MenuItem icon={Star} label="Starred" active={false} onClick={onClose} />
-
-        <div className="menuDivider">Apps</div>
-
-        <MenuItem icon={FaWhatsapp} label="WhatsApp" active={false} onClick={onClose} />
-        <MenuItem icon={FaInstagram} label="Instagram" active={false} onClick={onClose} />
-        <MenuItem icon={Mail} label="Email" active={false} onClick={onClose} />
 
         <button className="logoutButton" onClick={onLogout}>
           Logout
@@ -937,8 +1002,6 @@ function MenuItem({ icon: Icon, label, count, active, onClick }) {
 }
 
 function AiAssistantScreen({ messages, setSmartFilter, setScreen }) {
-  const recent = messages.slice(0, 4);
-
   return (
     <ScreenPage title="AI Assistant">
       <p className="centerSub">How can I help you today?</p>
@@ -959,7 +1022,7 @@ function AiAssistantScreen({ messages, setSmartFilter, setScreen }) {
 
       <section className="recentPanel">
         <h3>Recent</h3>
-        {recent.map((message) => (
+        {messages.slice(0, 4).map((message) => (
           <div className="recentItem" key={message.id}>
             <span>{sourceMeta[message.source]?.label || 'Message'}</span>
             <p>{message.text}</p>
@@ -977,7 +1040,7 @@ function AiAssistantScreen({ messages, setSmartFilter, setScreen }) {
   );
 }
 
-function SearchScreen({ query, setQuery, messages, onOpenMessage }) {
+function SearchScreen({ query, setQuery, messages, onOpenMessage, onDelete }) {
   return (
     <ScreenPage title="Search">
       <div className="searchBox pageSearch">
@@ -990,12 +1053,6 @@ function SearchScreen({ query, setQuery, messages, onOpenMessage }) {
         {query && <button onClick={() => setQuery('')}>×</button>}
       </div>
 
-      <div className="searchTabs">
-        <button className="active">Messages ({messages.length})</button>
-        <button>People</button>
-        <button>Files</button>
-      </div>
-
       <div className="messageList">
         {messages.map((message) => (
           <SwipeMessageRow
@@ -1003,6 +1060,7 @@ function SearchScreen({ query, setQuery, messages, onOpenMessage }) {
             message={message}
             onOpen={() => onOpenMessage(message)}
             onArchive={() => {}}
+            onDelete={() => onDelete(message)}
             onStar={() => {}}
             starred={false}
           />
@@ -1041,13 +1099,6 @@ function SettingsScreen({ auth, connectors, onToggleConnector, onLogout }) {
         <SettingRow icon={UserRound} title="Profile" value={auth.user?.name || 'User'} />
         <SettingRow icon={Mail} title="Email" value={auth.user?.email || 'Account email'} />
         <SettingRow icon={Shield} title="Security" value="Change password" />
-      </section>
-
-      <section className="settingsCard">
-        <h3>Preferences</h3>
-        <SettingRow icon={Bell} title="Notifications" value="On" />
-        <SettingRow icon={Sparkles} title="Dark Mode" value="Enabled" />
-        <SettingRow icon={Settings} title="Language" value="English" />
       </section>
 
       <section className="settingsCard">
@@ -1104,6 +1155,7 @@ function FolderScreen({
             message={message}
             onOpen={() => onOpenMessage(message)}
             onArchive={() => onArchive(message)}
+            onDelete={() => onDelete(message)}
             onStar={() => onStar(message.id)}
             starred={starredIds.includes(message.id)}
           />
@@ -1120,7 +1172,7 @@ function ScreenPage({ title, children, onBack }) {
     <>
       <div className="statusBar">
         <span>9:41</span>
-        <span>▮▮▮  Wi-Fi  ▰</span>
+        <span>▮▮▮ Wi-Fi ▰</span>
       </div>
 
       <header className="pageHeader">
@@ -1185,12 +1237,11 @@ function BottomNav({ screen, setScreen, onCompose }) {
       <button className={screen === 'inbox' ? 'active' : ''} onClick={() => setScreen('inbox')}>
         <Inbox size={19} />
         Inbox
-        <b>24</b>
       </button>
 
       <button className={screen === 'ai' ? 'active' : ''} onClick={() => setScreen('ai')}>
         <Sparkles size={19} />
-        AI Assistant
+        AI
       </button>
 
       <button onClick={onCompose}>
@@ -1290,12 +1341,14 @@ function folderTitle(folder) {
 }
 
 function initials(name = '') {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || '??';
+  return (
+    name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || '??'
+  );
 }
 
 function timeAgo(iso) {

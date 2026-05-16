@@ -1289,3 +1289,125 @@ button {
     left: 0;
   }
 }
+.messageCard {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 20px;
+  background: #121a2e;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.22);
+}
+
+.newReadableRow {
+  background: #162038 !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  box-shadow: none !important;
+}
+
+.newReadableRow .messageContent p {
+  color: #d7def3 !important;
+}
+
+.newReadableRow .messageContent small {
+  color: #9faacc !important;
+}
+
+.newReadableRow .messageTop strong {
+  color: #ffffff !important;
+}
+
+.messageQuickActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.quickAction {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.archiveActionButton {
+  background: rgba(124, 77, 255, 0.18);
+  color: #d9ccff;
+  border: 1px solid rgba(124, 77, 255, 0.28);
+}
+
+.deleteActionButton {
+  background: rgba(255, 77, 109, 0.14);
+  color: #ff9aad;
+  border: 1px solid rgba(255, 77, 109, 0.25);
+}
+
+.archiveActionButton:hover {
+  background: rgba(124, 77, 255, 0.28);
+}
+
+.deleteActionButton:hover {
+  background: rgba(255, 77, 109, 0.22);
+}
+.onePointCommand {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.commandButton {
+  border: 1px solid rgba(124, 77, 255, 0.22);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(124, 77, 255, 0.12);
+  color: #d9ccff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.commandButton.active {
+  background: linear-gradient(135deg, #7c4dff, #a166ff);
+  color: white;
+  box-shadow: 0 12px 28px rgba(124, 77, 255, 0.32);
+}
+
+.intelligenceCard {
+  margin-top: 9px;
+  padding: 9px;
+  border-radius: 13px;
+  background: rgba(124, 77, 255, 0.13);
+  border: 1px solid rgba(124, 77, 255, 0.22);
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.intelligenceCard strong {
+  display: block;
+  font-size: 15px;
+  color: white;
+}
+
+.intelligenceCard span {
+  font-size: 9px;
+  color: #cbbdff;
+}
+
+.intelligenceCard p {
+  margin: 0;
+  color: #e8e2ff !important;
+  font-size: 11px !important;
+  white-space: normal !important;
+  line-height: 1.3;
+}

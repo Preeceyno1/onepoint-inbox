@@ -332,4 +332,118 @@ app.post('/api/messages/:id/move-folder', auth, async (req, res) => {
   res.json(dbMessageToFrontend(msg));
 });
 const port = process.env.PORT || 4000;
+app.get('/api/user-items/:type', authRequired, async (req, res) => {
+  const { type } = req.params;
+
+  const result = await pool.query(
+    `select * from user_items 
+     where user_id = $1 and item_type = $2 
+     order by created_at desc`,
+    [req.user.id, type]
+  );
+
+  res.json(result.rows.map((row) => row.item_data));
+});
+
+app.post('/api/user-items/:type', authRequired, async (req, res) => {
+  const { type } = req.params;
+
+  const result = await pool.query(
+    `insert into user_items (user_id, item_type, item_data)
+     values ($1, $2, $3)
+     returning *`,
+    [req.user.id, type, req.body]
+  );
+
+  res.json(result.rows[0].item_data);
+});
+
+app.delete('/api/user-items/:type/:id', authRequired, async (req, res) => {
+  const { type, id } = req.params;
+
+  await pool.query(
+    `delete from user_items 
+     where user_id = $1 
+     and item_type = $2 
+     and item_data->>'id' = $3`,
+    [req.user.id, type, id]
+  );
+
+  res.json({ ok: true });
+});
+
+app.get('/api/message-flags/:flagType', authRequired, async (req, res) => {
+  const { flagType } = req.params;
+
+  const result = await pool.query(
+    `select message_id from message_flags
+     where user_id = $1 and flag_type = $2`,
+    [req.user.id, flagType]
+  );
+
+  res.json(result.rows.map((row) => row.message_id));
+});
+
+app.post('/api/message-flags/:flagType/:messageId', authRequired, async (req, res) => {
+  const { flagType, messageId } = req.params;
+
+  await pool.query(
+    `insert into message_flags (user_id, message_id, flag_type)
+     values ($1, $2, $3)
+     on conflict (user_id, message_id, flag_type) do nothing`,
+    [req.user.id, messageId, flagType]
+  );
+
+  res.json({ ok: true });
+});
+
+app.delete('/api/message-flags/:flagType/:messageId', authRequired, async (req, res) => {
+  const { flagType, messageId } = req.params;
+
+  await pool.query(
+    `delete from message_flags
+     where user_id = $1 and message_id = $2 and flag_type = $3`,
+    [req.user.id, messageId, flagType]
+  );
+
+  res.json({ ok: true });
+});
+
+app.get('/api/follow-ups', authRequired, async (req, res) => {
+  const result = await pool.query(
+    `select * from follow_ups
+     where user_id = $1 and completed = false
+     order by due_at asc`,
+    [req.user.id]
+  );
+
+  res.json(result.rows);
+});
+
+app.post('/api/follow-ups', authRequired, async (req, res) => {
+  const { messageId, senderName, text, source, dueAt } = req.body;
+
+  const result = await pool.query(
+    `insert into follow_ups 
+     (user_id, message_id, sender_name, message_text, source, due_at)
+     values ($1, $2, $3, $4, $5, $6)
+     returning *`,
+    [req.user.id, messageId, senderName, text, source, dueAt]
+  );
+
+  res.json(result.rows[0]);
+});
+
+app.patch('/api/follow-ups/:id/complete', authRequired, async (req, res) => {
+  const { id } = req.params;
+
+  await pool.query(
+    `update follow_ups
+     set completed = true
+     where id = $1 and user_id = $2`,
+    [id, req.user.id]
+  );
+
+  res.json({ ok: true });
+});
 server.listen(port, () => console.log(`OnePoint Inbox backend running on http://localhost:${port}`));
