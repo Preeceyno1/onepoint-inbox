@@ -457,3 +457,260 @@ input {
     overflow: hidden;
   }
 }
+.phoneApp {
+  width: 100%;
+  max-width: 430px;
+  overflow-x: hidden;
+}
+
+.sourceScroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 16px;
+  scrollbar-width: none;
+}
+
+.sourceScroller::-webkit-scrollbar {
+  display: none;
+}
+
+.sourceCard {
+  min-width: 84px;
+  max-width: 84px;
+  height: 112px;
+  border: 1px solid #eaecf0;
+  border-radius: 18px;
+  background: white;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
+}
+
+.sourceCard.active {
+  border-color: #6f4cff;
+  box-shadow: 0 10px 28px rgba(111, 76, 255, 0.18);
+}
+
+.sourceCard span {
+  font-size: 11px;
+  color: #344054;
+}
+
+.tinySwitch input {
+  display: none;
+}
+
+.tinySwitch span {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #d0d5dd;
+  display: block;
+  position: relative;
+}
+
+.tinySwitch span::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: 0.2s;
+}
+
+.tinySwitch input:checked + span {
+  background: #6f4cff;
+}
+
+.tinySwitch input:checked + span::after {
+  transform: translateX(16px);
+}
+
+.messageFeed {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.swipeWrap {
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.archiveBehind {
+  position: absolute;
+  inset: 0;
+  background: #6f4cff;
+  color: white;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding-right: 20px;
+  font-weight: 800;
+}
+
+.mobileMessageRow {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 100%;
+  transition: transform 0.18s ease;
+}
+
+.mobileMessageBody {
+  min-width: 0;
+}
+
+.mobileMessageBody p {
+  max-width: 100%;
+}
+
+.sideMenu {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: min(330px, 82vw);
+  transform: translateX(-720px);
+  background: white;
+  z-index: 500;
+  padding: 20px;
+  box-shadow: 30px 0 70px rgba(16, 24, 40, 0.18);
+  transition: 0.28s ease;
+}
+
+.sideMenu.open {
+  transform: translateX(calc(-50vw));
+}
+
+.menuOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.28);
+  z-index: 450;
+}
+
+.menuHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.menuHeader button,
+.menuItem,
+.logoutBtn {
+  border: none;
+  background: transparent;
+}
+
+.menuItem {
+  width: 100%;
+  padding: 13px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 14px;
+  color: #344054;
+  font-weight: 700;
+}
+
+.menuItem.active {
+  background: #f3efff;
+  color: #6f4cff;
+}
+
+.logoutBtn {
+  margin-top: 20px;
+  width: 100%;
+  padding: 13px;
+  border-radius: 14px;
+  background: #fff1f3;
+  color: #c01048;
+  font-weight: 800;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.35);
+  z-index: 700;
+  display: grid;
+  place-items: end center;
+}
+
+.composeModal {
+  width: min(430px, 100%);
+  background: white;
+  border-radius: 26px 26px 0 0;
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.composeTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.composeTop button {
+  border: none;
+  background: transparent;
+}
+
+.composeModal input,
+.composeModal textarea {
+  width: 100%;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  padding: 13px;
+  outline: none;
+}
+
+.composeModal textarea {
+  min-height: 150px;
+  resize: none;
+}
+
+.composeActions {
+  display: flex;
+  gap: 10px;
+}
+
+.composeActions button {
+  flex: 1;
+  border: none;
+  border-radius: 14px;
+  padding: 13px;
+  font-weight: 800;
+}
+
+.draftBtn {
+  background: #f2f4f7;
+  color: #344054;
+}
+
+.sendButton {
+  background: #6f4cff;
+  color: white;
+}
+
+.emptyState {
+  text-align: center;
+  color: #98a2b3;
+  padding: 50px 20px;
+  display: grid;
+  gap: 8px;
+  place-items: center;
+}
