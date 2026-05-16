@@ -332,7 +332,7 @@ app.post('/api/messages/:id/move-folder', auth, async (req, res) => {
   res.json(dbMessageToFrontend(msg));
 });
 const port = process.env.PORT || 4000;
-app.get('/api/user-items/:type', authRequired, async (req, res) => {
+app.get('/api/user-items/:type', auth, async (req, res) => {
   const { type } = req.params;
 
   const result = await pool.query(
@@ -345,7 +345,7 @@ app.get('/api/user-items/:type', authRequired, async (req, res) => {
   res.json(result.rows.map((row) => row.item_data));
 });
 
-app.post('/api/user-items/:type', authRequired, async (req, res) => {
+app.post('/api/user-items/:type', auth, async (req, res) => {
   const { type } = req.params;
 
   const result = await pool.query(
@@ -358,7 +358,7 @@ app.post('/api/user-items/:type', authRequired, async (req, res) => {
   res.json(result.rows[0].item_data);
 });
 
-app.delete('/api/user-items/:type/:id', authRequired, async (req, res) => {
+app.delete('/api/user-items/:type/:id', auth, async (req, res) => {
   const { type, id } = req.params;
 
   await pool.query(
@@ -372,7 +372,7 @@ app.delete('/api/user-items/:type/:id', authRequired, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/message-flags/:flagType', authRequired, async (req, res) => {
+app.get('/api/message-flags/:flagType', auth, async (req, res) => {
   const { flagType } = req.params;
 
   const result = await pool.query(
@@ -384,7 +384,7 @@ app.get('/api/message-flags/:flagType', authRequired, async (req, res) => {
   res.json(result.rows.map((row) => row.message_id));
 });
 
-app.post('/api/message-flags/:flagType/:messageId', authRequired, async (req, res) => {
+app.post('/api/message-flags/:flagType/:messageId', auth, async (req, res) => {
   const { flagType, messageId } = req.params;
 
   await pool.query(
@@ -397,7 +397,7 @@ app.post('/api/message-flags/:flagType/:messageId', authRequired, async (req, re
   res.json({ ok: true });
 });
 
-app.delete('/api/message-flags/:flagType/:messageId', authRequired, async (req, res) => {
+app.delete('/api/message-flags/:flagType/:messageId', auth, async (req, res) => {
   const { flagType, messageId } = req.params;
 
   await pool.query(
@@ -409,7 +409,7 @@ app.delete('/api/message-flags/:flagType/:messageId', authRequired, async (req, 
   res.json({ ok: true });
 });
 
-app.get('/api/follow-ups', authRequired, async (req, res) => {
+app.get('/api/follow-ups', auth, async (req, res) => {
   const result = await pool.query(
     `select * from follow_ups
      where user_id = $1 and completed = false
@@ -420,7 +420,7 @@ app.get('/api/follow-ups', authRequired, async (req, res) => {
   res.json(result.rows);
 });
 
-app.post('/api/follow-ups', authRequired, async (req, res) => {
+app.post('/api/follow-ups', auth, async (req, res) => {
   const { messageId, senderName, text, source, dueAt } = req.body;
 
   const result = await pool.query(
@@ -434,7 +434,7 @@ app.post('/api/follow-ups', authRequired, async (req, res) => {
   res.json(result.rows[0]);
 });
 
-app.patch('/api/follow-ups/:id/complete', authRequired, async (req, res) => {
+app.patch('/api/follow-ups/:id/complete', auth, async (req, res) => {
   const { id } = req.params;
 
   await pool.query(

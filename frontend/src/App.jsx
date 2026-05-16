@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   Bell,
+  CheckCircle2,
   ChevronLeft,
+  Clock,
   FileText,
   Inbox,
   Mail,
@@ -83,8 +85,25 @@ function analyseMessage(message) {
   }
 
   score = Math.max(1, Math.min(99, score));
-
   return { score, type, action, reason };
+}
+
+function makeLocalReply(message) {
+  const intel = analyseMessage(message);
+
+  if (intel.type === 'Sales lead') {
+    return `Hi ${message.senderName}, thanks for your message. Yes, I can help with that. I’ll send over the details, price and next steps now.`;
+  }
+
+  if (intel.type === 'Priority') {
+    return `Hi ${message.senderName}, thanks for letting me know. I’ll look into this straight away and come back to you as soon as possible.`;
+  }
+
+  if (intel.type === 'Follow-up') {
+    return `Hi ${message.senderName}, no problem. I’ll follow up with you again at the right time.`;
+  }
+
+  return `Hi ${message.senderName}, thanks for your message. I’ll come back to you shortly.`;
 }
 
 export default function App() {
@@ -97,9 +116,7 @@ export default function App() {
     setAuth(next);
   }
 
-  if (!auth?.token) {
-    return <LoginScreen onLogin={setAuthAndStore} />;
-  }
+  if (!auth?.token) return <LoginScreen onLogin={setAuthAndStore} />;
 
   return (
     <OnePointMobile
@@ -118,52 +135,145 @@ function OnePointMobile({ auth, onLogout }) {
 
   const [sourceFilter, setSourceFilter] = useState('all');
   const [smartFilter, setSmartFilter] = useState('all');
-
   const [folder, setFolder] = useState('inbox');
   const [query, setQuery] = useState('');
-
   const [screen, setScreen] = useState('inbox');
   const [selectedMessage, setSelectedMessage] = useState(null);
-
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
 
   const [sentMessages, setSentMessages] = useState([]);
   const [draftMessages, setDraftMessages] = useState([]);
   const [deletedMessages, setDeletedMessages] = useState([]);
-
   const [deletedIds, setDeletedIds] = useState([]);
   const [starredIds, setStarredIds] = useState([]);
+  const [followUps, setFollowUps] = useState([]);
 
   const [replyDraft, setReplyDraft] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState([]);
-
   const [calmMode, setCalmMode] = useState(false);
   const [inboxMode, setInboxMode] = useState('personal');
+  const [aiOutput, setAiOutput] = useState('');
+  const [replyHistory, setReplyHistory] = useState(() =>
+  JSON.parse(localStorage.getItem('onepoint_reply_history') || '{}')
+);
 
   const headers = {
     Authorization: `Bearer ${auth.token}`,
     'Content-Type': 'application/json'
+    
   };
 
-  async function load() {
-    const [messageRes, connectorRes] = await Promise.all([
-      fetch(`${API}/api/messages`, { headers }),
-      fetch(`${API}/api/connectors`, { headers })
-    ]);
-
-    if (messageRes.status === 401) return onLogout();
-
-    const nextMessages = await messageRes.json();
-    const nextConnectors = await connectorRes.json();
-
-    setMessages(Array.isArray(nextMessages) ? nextMessages : []);
-    setConnectors(Array.isArray(nextConnectors) ? nextConnectors : []);
+  async function apiGet(path) {
+    const res = await fetch(`${API}${path}`, { headers });
+    if (res.status === 401) {
+      onLogout();
+      return null;
+    }
+    return res.json();
   }
+
+  async function apiPost(path, body) {
+    const res = await fetch(`${API}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (res.status === 401) {
+      onLogout();
+      return null;
+    }
+
+    return res.json();
+  }
+
+  async function apiDelete(path) {
+    const res = await fetch(`${API}${path}`, {
+      method: 'DELETE',
+      headers
+    });
+
+    if (res.status === 401) {
+      onLogout();
+      return null;
+    }
+
+    return res.json();
+  }
+
+  async function apiPatch(path, body = {}) {
+    const res = await fetch(`${API}${path}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (res.status === 401) {
+      onLogout();
+      return null;
+    }
+
+    return res.json();
+  }
+
+  async function load() {
+  const nextMessages = await apiGet('/api/messages');
+  const nextConnectors = await apiGet('/api/connectors');
+
+  setMessages(Array.isArray(nextMessages) ? nextMessages : []);
+  setConnectors(Array.isArray(nextConnectors) ? nextConnectors : []);
+
+  try {
+    const sent = await apiGet('/api/user-items/sent');
+    setSentMessages(Array.isArray(sent) ? sent : []);
+  } catch {}
+
+  try {
+    const drafts = await apiGet('/api/user-items/drafts');
+    setDraftMessages(Array.isArray(drafts) ? drafts : []);
+  } catch {}
+
+  try {
+    const deleted = await apiGet('/api/user-items/deleted');
+    setDeletedMessages(Array.isArray(deleted) ? deleted : []);
+  } catch {}
+
+  try {
+    const deletedFlags = await apiGet('/api/message-flags/deleted');
+    setDeletedIds(Array.isArray(deletedFlags) ? deletedFlags : []);
+  } catch {}
+
+  try {
+    const starred = await apiGet('/api/message-flags/starred');
+    setStarredIds(Array.isArray(starred) ? starred : []);
+  } catch {}
+
+  try {
+    const follow = await apiGet('/api/follow-ups');
+
+    setFollowUps(
+      Array.isArray(follow)
+        ? follow.map((item) => ({
+            id: item.id,
+            messageId: item.message_id,
+            senderName: item.sender_name,
+            text: item.message_text,
+            source: item.source,
+            dueAt: item.due_at,
+            createdAt: item.created_at
+          }))
+        : []
+    );
+  } catch {}
+}
 
   useEffect(() => {
     load();
   }, []);
+  useEffect(() => {
+  localStorage.setItem('onepoint_reply_history', JSON.stringify(replyHistory));
+}, [replyHistory]);
 
   const enabledSources = useMemo(
     () => connectors.filter((c) => c.enabled).map((c) => c.source),
@@ -174,6 +284,37 @@ function OnePointMobile({ auth, onLogout }) {
     () => messages.filter((m) => !deletedIds.includes(m.id)),
     [messages, deletedIds]
   );
+
+  const customerTimelines = useMemo(() => {
+    const grouped = {};
+
+    liveMessages.forEach((m) => {
+      const key = (m.senderName || 'Unknown').toLowerCase().trim();
+
+      if (!grouped[key]) {
+        grouped[key] = {
+          name: m.senderName || 'Unknown',
+          sources: new Set(),
+          messages: [],
+          score: 0
+        };
+      }
+
+      grouped[key].sources.add(m.source);
+      grouped[key].messages.push(m);
+      grouped[key].score = Math.max(grouped[key].score, analyseMessage(m).score);
+    });
+
+    return Object.values(grouped)
+      .map((item) => ({
+        ...item,
+        sources: Array.from(item.sources),
+        messages: item.messages.sort(
+          (a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0)
+        )
+      }))
+      .sort((a, b) => b.score - a.score);
+  }, [liveMessages]);
 
   const counts = useMemo(() => {
     const live = liveMessages.filter((m) => !m.archived);
@@ -187,9 +328,11 @@ function OnePointMobile({ auth, onLogout }) {
       archived: liveMessages.filter((m) => m.archived).length,
       sent: sentMessages.length,
       drafts: draftMessages.length,
-      deleted: deletedMessages.length
+      deleted: deletedMessages.length,
+      followups: followUps.length,
+      timelines: customerTimelines.length
     };
-  }, [liveMessages, sentMessages, draftMessages, deletedMessages]);
+  }, [liveMessages, sentMessages, draftMessages, deletedMessages, followUps, customerTimelines]);
 
   const visibleMessages = useMemo(() => {
     if (folder === 'sent') return sentMessages;
@@ -268,19 +411,44 @@ function OnePointMobile({ auth, onLogout }) {
     await load();
   }
 
-  function deleteMessage(message) {
-    setDeletedMessages((current) => [{ ...message, deletedAt: new Date().toISOString() }, ...current]);
-    setDeletedIds((current) => [...current, message.id]);
+  async function deleteMessage(message) {
+    await apiPost('/api/user-items/deleted', {
+      ...message,
+      deletedAt: new Date().toISOString()
+    });
+
+    await apiPost(`/api/message-flags/deleted/${message.id}`, {});
 
     if (folder === 'drafts') {
-      setDraftMessages((current) => current.filter((m) => m.id !== message.id));
+      await apiDelete(`/api/user-items/drafts/${message.id}`);
     }
 
     if (folder === 'sent') {
-      setSentMessages((current) => current.filter((m) => m.id !== message.id));
+      await apiDelete(`/api/user-items/sent/${message.id}`);
     }
 
     setSelectedMessage(null);
+    await load();
+  }
+
+  async function createFollowUp(message) {
+    const exists = followUps.some((f) => f.messageId === message.id);
+    if (exists) return;
+
+    await apiPost('/api/follow-ups', {
+      messageId: message.id,
+      senderName: message.senderName,
+      text: message.text,
+      source: message.source,
+      dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    await load();
+  }
+
+  async function completeFollowUp(id) {
+    await apiPatch(`/api/follow-ups/${id}/complete`);
+    await load();
   }
 
   async function addDemoMessage() {
@@ -297,7 +465,7 @@ function OnePointMobile({ auth, onLogout }) {
         source: 'instagram',
         senderName: 'james.reels',
         senderHandle: '@james.reels',
-        text: 'Sent you a reel by @explore',
+        text: 'How much is this and can I collect today?',
         conversationId: 'demo-ig',
         sourceMessageId: crypto.randomUUID()
       },
@@ -337,39 +505,115 @@ function OnePointMobile({ auth, onLogout }) {
   }
 
   async function generateReplies(message) {
-    const response = await fetch(`${API}/api/ai/suggest-replies`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        message,
-        tone: 'friendly'
-      })
-    });
+    try {
+      const response = await fetch(`${API}/api/ai/suggest-replies`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message,
+          tone: 'friendly'
+        })
+      });
 
-    const data = await response.json();
-    setAiSuggestions(data.suggestions || []);
+      const data = await response.json();
+
+      if (data.suggestions?.length) {
+        setAiSuggestions(data.suggestions);
+        return;
+      }
+    } catch {}
+
+    setAiSuggestions([
+      makeLocalReply(message),
+      `Thanks ${message.senderName}, I’ll check this and come back to you shortly.`,
+      `Hi ${message.senderName}, that’s no problem. I’ll sort this for you.`
+    ]);
+  }
+    function summarizeUnread() {
+    const unread = liveMessages.filter((m) => !m.read && !m.archived);
+
+    if (!unread.length) {
+      setAiOutput('You have no unread messages. Everything looks clear.');
+      return;
+    }
+
+    const priority = unread.filter((m) => analyseMessage(m).score >= 65);
+    const sales = unread.filter((m) => analyseMessage(m).type === 'Sales lead');
+    const follow = unread.filter((m) => analyseMessage(m).type === 'Follow-up');
+
+    setAiOutput(
+      `Unread summary: ${unread.length} unread messages. ${priority.length} need attention, ${sales.length} look like sales opportunities, and ${follow.length} may need follow-up.`
+    );
   }
 
-  function sendCompose(message) {
-    setSentMessages((current) => [message, ...current]);
+  function draftBestReply() {
+    const top = [...liveMessages].sort(
+      (a, b) => analyseMessage(b).score - analyseMessage(a).score
+    )[0];
+
+    if (!top) {
+      setAiOutput('No message found to draft a reply for.');
+      return;
+    }
+
+    setAiOutput(`Suggested reply to ${top.senderName}: ${makeLocalReply(top)}`);
+  }
+
+  function prioritizeInbox() {
+    setSmartFilter('priority');
+    setCalmMode(true);
+    setScreen('inbox');
+
+    setAiOutput(
+      'Priority mode is now active. I am showing only the messages most likely to need you.'
+    );
+  }
+
+  async function sendCompose(message) {
+    setReplyHistory((current) => ({
+  ...current,
+  [message.senderName]: (current[message.senderName] || 0) + 1
+}));
+    await apiPost('/api/user-items/sent', message);
+
     setComposeOpen(false);
     setScreen('sent');
     setFolder('sent');
+
+    await load();
   }
 
-  function saveDraft(message) {
-    setDraftMessages((current) => [message, ...current]);
+  async function saveDraft(message) {
+    await apiPost('/api/user-items/drafts', message);
+
     setComposeOpen(false);
     setScreen('drafts');
     setFolder('drafts');
+
+    await load();
   }
 
-  function toggleStar(id) {
-    setStarredIds((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id]
-    );
+  async function toggleStar(id) {
+    if (starredIds.includes(id)) {
+      await apiDelete(`/api/message-flags/starred/${id}`);
+    } else {
+      await apiPost(`/api/message-flags/starred/${id}`, {});
+    }
+
+    await load();
+  }
+
+  async function requestNotifications() {
+    if (!('Notification' in window)) {
+      alert('This browser does not support notifications.');
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission === 'granted') {
+      new Notification('OnePoint Inbox notifications enabled');
+    }
   }
 
   if (selectedMessage) {
@@ -383,6 +627,7 @@ function OnePointMobile({ auth, onLogout }) {
             setAiSuggestions([]);
           }}
           onDelete={() => deleteMessage(selectedMessage)}
+          onFollowUp={() => createFollowUp(selectedMessage)}
           replyDraft={replyDraft}
           setReplyDraft={setReplyDraft}
           suggestions={aiSuggestions}
@@ -425,6 +670,7 @@ function OnePointMobile({ auth, onLogout }) {
           onOpenMessage={setSelectedMessage}
           onArchive={archiveMessage}
           onDelete={deleteMessage}
+          onFollowUp={createFollowUp}
           onStar={toggleStar}
           starredIds={starredIds}
           onAddDemo={addDemoMessage}
@@ -439,8 +685,10 @@ function OnePointMobile({ auth, onLogout }) {
       {screen === 'ai' && (
         <AiAssistantScreen
           messages={liveMessages}
-          setSmartFilter={setSmartFilter}
-          setScreen={setScreen}
+          aiOutput={aiOutput}
+          summarizeUnread={summarizeUnread}
+          draftBestReply={draftBestReply}
+          prioritizeInbox={prioritizeInbox}
         />
       )}
 
@@ -454,7 +702,9 @@ function OnePointMobile({ auth, onLogout }) {
         />
       )}
 
-      {screen === 'contacts' && <ContactsScreen people={demoPeople} />}
+      {screen === 'contacts' && (
+        <ContactsScreen people={demoPeople} timelines={customerTimelines} />
+      )}
 
       {screen === 'settings' && (
         <SettingsScreen
@@ -462,6 +712,18 @@ function OnePointMobile({ auth, onLogout }) {
           connectors={connectors}
           onToggleConnector={toggleConnector}
           onLogout={onLogout}
+          requestNotifications={requestNotifications}
+        />
+      )}
+
+      {screen === 'followups' && (
+        <FollowUpsScreen
+          followUps={followUps}
+          onComplete={completeFollowUp}
+          onBack={() => {
+            setScreen('inbox');
+            setFolder('inbox');
+          }}
         />
       )}
 
@@ -476,6 +738,7 @@ function OnePointMobile({ auth, onLogout }) {
           onOpenMessage={setSelectedMessage}
           onArchive={archiveMessage}
           onDelete={deleteMessage}
+          onFollowUp={createFollowUp}
           starredIds={starredIds}
           onStar={toggleStar}
         />
@@ -485,12 +748,16 @@ function OnePointMobile({ auth, onLogout }) {
         screen={screen}
         setScreen={(next) => {
           setScreen(next);
+
           if (next === 'inbox') setFolder('inbox');
         }}
         onCompose={() => setComposeOpen(true)}
       />
 
-      <button className="floatingCompose" onClick={() => setComposeOpen(true)}>
+      <button
+        className="floatingCompose"
+        onClick={() => setComposeOpen(true)}
+      >
         <Plus />
       </button>
 
@@ -505,7 +772,6 @@ function OnePointMobile({ auth, onLogout }) {
     </PhoneShell>
   );
 }
-
 function InboxScreen({
   auth,
   messages = [],
@@ -522,6 +788,7 @@ function InboxScreen({
   onOpenMessage,
   onArchive,
   onDelete,
+  onFollowUp,
   onStar,
   starredIds,
   onAddDemo,
@@ -652,6 +919,7 @@ function InboxScreen({
             onOpen={() => onOpenMessage(message)}
             onArchive={() => onArchive(message)}
             onDelete={() => onDelete(message)}
+            onFollowUp={() => onFollowUp(message)}
             onStar={() => onStar(message.id)}
             starred={starredIds.includes(message.id)}
           />
@@ -707,10 +975,11 @@ function SourceCard({ source, active, enabled = true, onClick, onToggle }) {
   );
 }
 
-function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onStar, starred }) {
+function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onStar, starred }) {
   const meta = sourceMeta[message.source] || sourceMeta.email;
   const Icon = meta.icon;
-  const intelligence = analyseMessage(message);
+  const replyHistory = JSON.parse(localStorage.getItem('onepoint_reply_history') || '{}');
+  const intelligence = analyseMessage(message, replyHistory[message.senderName] || 0);
 
   return (
     <div className="messageCard">
@@ -737,14 +1006,22 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onStar, starred
           <small>
             <span style={{ color: meta.colour }}>{meta.label}</span> · {timeAgo(message.receivedAt)}
           </small>
+          {/(reel|video|sent you a reel|sent you a video)/i.test(message.text || '') && (
+  <button
+    className="videoPreview"
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      alert('Video preview would open here when connected to the real platform.');
+    }}
+  >
+    <span>▶</span>
+  </button>
+)}
 
-          <div className="intelligenceCard">
-            <div>
-              <strong>{intelligence.score}%</strong>
-              <span>{intelligence.type}</span>
-            </div>
-            <p>{intelligence.action}</p>
-          </div>
+          <div className="tinyPriorityBadge">
+  {intelligence.score}%
+</div>
         </div>
 
         <button
@@ -760,20 +1037,17 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onStar, starred
       </button>
 
       <div className="messageQuickActions">
-        <button
-          className="quickAction archiveActionButton"
-          type="button"
-          onClick={onArchive}
-        >
+        <button className="quickAction archiveActionButton" type="button" onClick={onArchive}>
           <Archive size={15} />
           Archive
         </button>
 
-        <button
-          className="quickAction deleteActionButton"
-          type="button"
-          onClick={onDelete}
-        >
+        <button className="quickAction followActionButton" type="button" onClick={onFollowUp}>
+          <Clock size={15} />
+          Follow up
+        </button>
+
+        <button className="quickAction deleteActionButton" type="button" onClick={onDelete}>
           <Trash2 size={15} />
           Delete
         </button>
@@ -786,6 +1060,7 @@ function ChatScreen({
   message,
   onBack,
   onDelete,
+  onFollowUp,
   replyDraft,
   setReplyDraft,
   suggestions,
@@ -816,6 +1091,10 @@ function ChatScreen({
 
         <button className="iconButton">
           <Phone />
+        </button>
+
+        <button className="iconButton" onClick={onFollowUp}>
+          <Clock />
         </button>
 
         <button className="iconButton" onClick={onDelete}>
@@ -885,7 +1164,6 @@ function ChatScreen({
     </>
   );
 }
-
 function ComposeModal({ auth, onClose, onSend, onDraft }) {
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
@@ -968,20 +1246,72 @@ function SideMenu({ open, onClose, auth, folder, setFolder, counts, onLogout }) 
             {auth.user?.name?.[0] || 'U'}
             <span />
           </div>
+
           <div>
             <strong>{auth.user?.name || 'Samuel Preece'}</strong>
             <p>{auth.user?.email || 'samuel@onepoint.app'}</p>
           </div>
+
           <button onClick={onClose}>
             <X />
           </button>
         </div>
 
-        <MenuItem icon={Inbox} label="Inbox" count={counts.all} active={folder === 'inbox'} onClick={() => setFolder('inbox')} />
-        <MenuItem icon={Archive} label="Archived" count={counts.archived} active={folder === 'archive'} onClick={() => setFolder('archive')} />
-        <MenuItem icon={Send} label="Sent" count={counts.sent} active={folder === 'sent'} onClick={() => setFolder('sent')} />
-        <MenuItem icon={FileText} label="Drafts" count={counts.drafts} active={folder === 'drafts'} onClick={() => setFolder('drafts')} />
-        <MenuItem icon={Trash2} label="Deleted" count={counts.deleted} active={folder === 'deleted'} onClick={() => setFolder('deleted')} />
+        <MenuItem
+          icon={Inbox}
+          label="Inbox"
+          count={counts.all}
+          active={folder === 'inbox'}
+          onClick={() => setFolder('inbox')}
+        />
+
+        <MenuItem
+          icon={Clock}
+          label="Follow-ups"
+          count={counts.followups}
+          active={folder === 'followups'}
+          onClick={() => setFolder('followups')}
+        />
+
+        <MenuItem
+          icon={Users}
+          label="Timelines"
+          count={counts.timelines}
+          active={false}
+          onClick={onClose}
+        />
+
+        <MenuItem
+          icon={Archive}
+          label="Archived"
+          count={counts.archived}
+          active={folder === 'archive'}
+          onClick={() => setFolder('archive')}
+        />
+
+        <MenuItem
+          icon={Send}
+          label="Sent"
+          count={counts.sent}
+          active={folder === 'sent'}
+          onClick={() => setFolder('sent')}
+        />
+
+        <MenuItem
+          icon={FileText}
+          label="Drafts"
+          count={counts.drafts}
+          active={folder === 'drafts'}
+          onClick={() => setFolder('drafts')}
+        />
+
+        <MenuItem
+          icon={Trash2}
+          label="Deleted"
+          count={counts.deleted}
+          active={folder === 'deleted'}
+          onClick={() => setFolder('deleted')}
+        />
 
         <button className="logoutButton" onClick={onLogout}>
           Logout
@@ -1001,34 +1331,43 @@ function MenuItem({ icon: Icon, label, count, active, onClick }) {
   );
 }
 
-function AiAssistantScreen({ messages, setSmartFilter, setScreen }) {
+function AiAssistantScreen({ aiOutput, summarizeUnread, draftBestReply, prioritizeInbox }) {
   return (
     <ScreenPage title="AI Assistant">
       <p className="centerSub">How can I help you today?</p>
 
       <div className="aiGrid">
-        <AiAction icon={FileText} title="Summarize unread messages" />
-        <AiAction icon={Mail} title="Draft a reply" />
-        <AiAction icon={Search} title="Find important info" />
+        <AiAction
+          icon={FileText}
+          title="Summarize unread messages"
+          onClick={summarizeUnread}
+        />
+
+        <AiAction
+          icon={Mail}
+          title="Draft best reply"
+          onClick={draftBestReply}
+        />
+
+        <AiAction
+          icon={Search}
+          title="Find important info"
+          onClick={summarizeUnread}
+        />
+
         <AiAction
           icon={Zap}
           title="Smart prioritization"
-          onClick={() => {
-            setSmartFilter('priority');
-            setScreen('inbox');
-          }}
+          onClick={prioritizeInbox}
         />
       </div>
 
-      <section className="recentPanel">
-        <h3>Recent</h3>
-        {messages.slice(0, 4).map((message) => (
-          <div className="recentItem" key={message.id}>
-            <span>{sourceMeta[message.source]?.label || 'Message'}</span>
-            <p>{message.text}</p>
-          </div>
-        ))}
-      </section>
+      {aiOutput && (
+        <section className="recentPanel">
+          <h3>AI Result</h3>
+          <p>{aiOutput}</p>
+        </section>
+      )}
 
       <div className="aiInput">
         <input placeholder="Ask me anything..." />
@@ -1050,6 +1389,7 @@ function SearchScreen({ query, setQuery, messages, onOpenMessage, onDelete }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+
         {query && <button onClick={() => setQuery('')}>×</button>}
       </div>
 
@@ -1061,6 +1401,7 @@ function SearchScreen({ query, setQuery, messages, onOpenMessage, onDelete }) {
             onOpen={() => onOpenMessage(message)}
             onArchive={() => {}}
             onDelete={() => onDelete(message)}
+            onFollowUp={() => {}}
             onStar={() => {}}
             starred={false}
           />
@@ -1070,28 +1411,77 @@ function SearchScreen({ query, setQuery, messages, onOpenMessage, onDelete }) {
   );
 }
 
-function ContactsScreen({ people }) {
+function ContactsScreen({ people, timelines }) {
   return (
-    <ScreenPage title="Contacts">
+    <ScreenPage title="Customer Timelines">
       <div className="contactsList">
-        {people.map((person) => (
-          <div className="contactCard" key={person.name}>
-            <div className="personAvatar">{person.avatar}</div>
+        {timelines.map((item) => (
+          <div className="contactCard" key={item.name}>
+            <div className="personAvatar">{initials(item.name)}</div>
+
             <div>
-              <strong>{person.name}</strong>
-              <span>Recent conversation</span>
+              <strong>{item.name}</strong>
+              <span>
+                {item.messages.length} messages · {item.sources.join(', ')}
+              </span>
             </div>
+
             <button>
               <MessageCircle size={17} />
             </button>
           </div>
         ))}
+
+        {!timelines.length &&
+          people.map((person) => (
+            <div className="contactCard" key={person.name}>
+              <div className="personAvatar">{person.avatar}</div>
+
+              <div>
+                <strong>{person.name}</strong>
+                <span>Recent conversation</span>
+              </div>
+
+              <button>
+                <MessageCircle size={17} />
+              </button>
+            </div>
+          ))}
       </div>
     </ScreenPage>
   );
 }
 
-function SettingsScreen({ auth, connectors, onToggleConnector, onLogout }) {
+function FollowUpsScreen({ followUps, onComplete, onBack }) {
+  return (
+    <ScreenPage title="Follow-ups" onBack={onBack}>
+      <div className="messageList">
+        {followUps.map((item) => (
+          <div className="messageCard" key={item.id}>
+            <div className="messageContent">
+              <strong>{item.senderName}</strong>
+              <p>{item.text}</p>
+              <small>Due {new Date(item.dueAt).toLocaleString()}</small>
+            </div>
+
+            <div className="messageQuickActions">
+              <button
+                className="quickAction archiveActionButton"
+                onClick={() => onComplete(item.id)}
+              >
+                <CheckCircle2 size={15} />
+                Done
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {!followUps.length && <EmptyState />}
+      </div>
+    </ScreenPage>
+  );
+}
+function SettingsScreen({ auth, connectors, onToggleConnector, onLogout, requestNotifications }) {
   return (
     <ScreenPage title="Settings">
       <section className="settingsCard">
@@ -1099,10 +1489,15 @@ function SettingsScreen({ auth, connectors, onToggleConnector, onLogout }) {
         <SettingRow icon={UserRound} title="Profile" value={auth.user?.name || 'User'} />
         <SettingRow icon={Mail} title="Email" value={auth.user?.email || 'Account email'} />
         <SettingRow icon={Shield} title="Security" value="Change password" />
+
+        <button className="addDemoButton" onClick={requestNotifications}>
+          Enable notifications
+        </button>
       </section>
 
       <section className="settingsCard">
         <h3>Connected Apps</h3>
+
         {connectors.map((connector) => {
           const meta = sourceMeta[connector.source] || sourceMeta.email;
           const Icon = meta.icon;
@@ -1112,10 +1507,12 @@ function SettingsScreen({ auth, connectors, onToggleConnector, onLogout }) {
               <div className="sourceIcon small" style={{ background: meta.colour }}>
                 <Icon />
               </div>
+
               <div>
                 <strong>{meta.label}</strong>
                 <span>{connector.enabled ? 'Connected' : 'Off'}</span>
               </div>
+
               <label className="miniSwitch">
                 <input
                   type="checkbox"
@@ -1143,6 +1540,7 @@ function FolderScreen({
   onOpenMessage,
   onArchive,
   onDelete,
+  onFollowUp,
   starredIds,
   onStar
 }) {
@@ -1156,6 +1554,7 @@ function FolderScreen({
             onOpen={() => onOpenMessage(message)}
             onArchive={() => onArchive(message)}
             onDelete={() => onDelete(message)}
+            onFollowUp={() => onFollowUp(message)}
             onStar={() => onStar(message.id)}
             starred={starredIds.includes(message.id)}
           />
@@ -1183,7 +1582,9 @@ function ScreenPage({ title, children, onBack }) {
         ) : (
           <span />
         )}
+
         <h1>{title}</h1>
+
         <button className="iconButton">
           <MoreVertical />
         </button>
@@ -1305,7 +1706,13 @@ function LoginScreen({ onLogin }) {
         )}
 
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
+
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          type="password"
+        />
 
         {error && <div className="errorBox">{error}</div>}
 
