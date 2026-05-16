@@ -106,6 +106,83 @@ function makeLocalReply(message) {
   return `Hi ${message.senderName}, thanks for your message. I’ll come back to you shortly.`;
 }
 
+/* PASTE THE NEW FUNCTIONS HERE */
+
+function getRelationshipLevel(message, replyHistory = {}) {
+  const replies = replyHistory[message.senderName] || 0;
+  const score = analyseMessage(message).score;
+
+  if (replies >= 6 || score >= 80) return 'hot';
+  if (replies >= 3 || score >= 65) return 'warm';
+  return 'normal';
+}
+
+function buildSmartMemory(messages = []) {
+  const memory = {};
+
+  messages.forEach((message) => {
+    const name = message.senderName || 'Unknown';
+    const text = (message.text || '').toLowerCase();
+
+    if (!memory[name]) {
+      memory[name] = {
+        name,
+        notes: [],
+        sources: new Set(),
+        messageCount: 0
+      };
+    }
+
+    memory[name].messageCount += 1;
+    memory[name].sources.add(message.source);
+
+    if (/price|cost|buy|order|book|quote|collect/.test(text)) {
+      memory[name].notes.push('Interested in buying or booking');
+    }
+
+    if (/urgent|problem|issue|wrong|refund/.test(text)) {
+      memory[name].notes.push('May need careful support');
+    }
+
+    if (/tomorrow|later|next week|follow up/.test(text)) {
+      memory[name].notes.push('May need follow-up');
+    }
+  });
+
+  return Object.values(memory).map((item) => ({
+    ...item,
+    sources: Array.from(item.sources),
+    notes: [...new Set(item.notes)].slice(0, 3)
+  }));
+}
+
+function buildDailyBriefing(messages = [], followUps = []) {
+  const live = messages.filter((m) => !m.archived);
+  const urgent = live.filter((m) => analyseMessage(m).score >= 65);
+  const sales = live.filter((m) => analyseMessage(m).type === 'Sales lead');
+  const waiting = live.filter((m) => /sent|waiting|reply/i.test(m.text || ''));
+
+  return {
+    title: 'Today’s OnePoint Briefing',
+    summary: `${urgent.length} need attention, ${sales.length} look like sales opportunities, ${followUps.length} follow-ups are active, and ${waiting.length} conversations may be waiting on replies.`,
+    urgent,
+    sales,
+    followUps
+  };
+}
+
+function makeVoiceNoteSummary(message) {
+  return {
+    summary: `Voice note summary for ${message.senderName}: this appears to need a short, clear response.`,
+    points: [
+      'Main point detected',
+      'Possible reply needed',
+      'Can be handled quickly'
+    ],
+    suggestedReply: makeLocalReply(message)
+  };
+}
+
 export default function App() {
   const [auth, setAuth] = useState(() =>
     JSON.parse(localStorage.getItem('onepoint_auth') || 'null')
@@ -154,6 +231,15 @@ function OnePointMobile({ auth, onLogout }) {
   const [calmMode, setCalmMode] = useState(false);
   const [inboxMode, setInboxMode] = useState('personal');
   const [aiOutput, setAiOutput] = useState('');
+  const [smartActionsOpen, setSmartActionsOpen] = useState(null);
+  const [voiceSummary, setVoiceSummary] = useState(null);
+  const [theme, setTheme] = useState(() =>
+  localStorage.getItem('onepoint_theme') || 'dark'
+);
+
+useEffect(() => {
+  localStorage.setItem('onepoint_theme', theme);
+}, [theme]);
   const [replyHistory, setReplyHistory] = useState(() =>
   JSON.parse(localStorage.getItem('onepoint_reply_history') || '{}')
 );
@@ -284,6 +370,13 @@ function OnePointMobile({ auth, onLogout }) {
     () => messages.filter((m) => !deletedIds.includes(m.id)),
     [messages, deletedIds]
   );
+const smartMemory = useMemo(() => {
+  return buildSmartMemory(liveMessages);
+}, [liveMessages]);
+
+const dailyBriefing = useMemo(() => {
+  return buildDailyBriefing(liveMessages, followUps);
+}, [liveMessages, followUps]);
 
   const customerTimelines = useMemo(() => {
     const grouped = {};
@@ -305,11 +398,14 @@ function OnePointMobile({ auth, onLogout }) {
       grouped[key].score = Math.max(grouped[key].score, analyseMessage(m).score);
     });
 
-    return Object.values(grouped)
-      .map((item) => ({
-        ...item,
-        sources: Array.from(item.sources),
-        messages: item.messages.sort(
+    const memory = buildSmartMemory(liveMessages);
+
+return Object.values(grouped)
+  .map((item) => ({
+    ...item,
+    sources: Array.from(item.sources),
+    memory: memory.find((m) => m.name === item.name),
+    messages: item.messages.sort(
           (a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0)
         )
       }))
@@ -529,6 +625,24 @@ function OnePointMobile({ auth, onLogout }) {
       `Hi ${message.senderName}, that’s no problem. I’ll sort this for you.`
     ]);
   }
+  function openSmartActions(message) {
+  setSmartActionsOpen(message);
+}
+
+function closeSmartActions() {
+  setSmartActionsOpen(null);
+}
+
+function replyLikeMe(message) {
+  setReplyDraft(makeLocalReply(message));
+  setSelectedMessage(message);
+  closeSmartActions();
+}
+
+function showVoiceSummary(message) {
+  setVoiceSummary(makeVoiceNoteSummary(message));
+  closeSmartActions();
+}
     function summarizeUnread() {
     const unread = liveMessages.filter((m) => !m.read && !m.archived);
 
@@ -618,7 +732,7 @@ function OnePointMobile({ auth, onLogout }) {
 
   if (selectedMessage) {
     return (
-      <PhoneShell>
+      <PhoneShell theme={theme}>
         <ChatScreen
           message={selectedMessage}
           onBack={() => {
@@ -638,7 +752,7 @@ function OnePointMobile({ auth, onLogout }) {
   }
 
   return (
-    <PhoneShell>
+    <PhoneShell theme={theme}>
       <SideMenu
         open={sideMenuOpen}
         onClose={() => setSideMenuOpen(false)}
@@ -679,6 +793,7 @@ function OnePointMobile({ auth, onLogout }) {
           setCalmMode={setCalmMode}
           inboxMode={inboxMode}
           setInboxMode={setInboxMode}
+          openSmartActions={openSmartActions}
         />
       )}
 
@@ -708,12 +823,14 @@ function OnePointMobile({ auth, onLogout }) {
 
       {screen === 'settings' && (
         <SettingsScreen
-          auth={auth}
-          connectors={connectors}
-          onToggleConnector={toggleConnector}
-          onLogout={onLogout}
-          requestNotifications={requestNotifications}
-        />
+  auth={auth}
+  connectors={connectors}
+  onToggleConnector={toggleConnector}
+  onLogout={onLogout}
+  requestNotifications={requestNotifications}
+  theme={theme}
+  setTheme={setTheme}
+/>
       )}
 
       {screen === 'followups' && (
@@ -769,6 +886,33 @@ function OnePointMobile({ auth, onLogout }) {
           onDraft={saveDraft}
         />
       )}
+      {smartActionsOpen && (
+  <SmartActionsModal
+    message={smartActionsOpen}
+    onClose={closeSmartActions}
+    onReplyLikeMe={() => replyLikeMe(smartActionsOpen)}
+    onFollowUp={() => {
+      createFollowUp(smartActionsOpen);
+      closeSmartActions();
+    }}
+    onVoiceSummary={() => showVoiceSummary(smartActionsOpen)}
+    onArchive={() => {
+      archiveMessage(smartActionsOpen);
+      closeSmartActions();
+    }}
+    onDelete={() => {
+      deleteMessage(smartActionsOpen);
+      closeSmartActions();
+    }}
+  />
+)}
+
+{voiceSummary && (
+  <VoiceSummaryModal
+    summary={voiceSummary}
+    onClose={() => setVoiceSummary(null)}
+  />
+)}
     </PhoneShell>
   );
 }
@@ -914,15 +1058,16 @@ function InboxScreen({
       <div className="messageList">
         {messages.map((message) => (
           <SwipeMessageRow
-            key={message.id}
-            message={message}
-            onOpen={() => onOpenMessage(message)}
-            onArchive={() => onArchive(message)}
-            onDelete={() => onDelete(message)}
-            onFollowUp={() => onFollowUp(message)}
-            onStar={() => onStar(message.id)}
-            starred={starredIds.includes(message.id)}
-          />
+  key={message.id}
+  message={message}
+  onOpen={() => onOpenMessage(message)}
+  onArchive={() => onArchive(message)}
+  onDelete={() => onDelete(message)}
+  onFollowUp={() => onFollowUp(message)}
+  onSmartActions={() => openSmartActions(message)}
+  onStar={() => onStar(message.id)}
+  starred={starredIds.includes(message.id)}
+/>
         ))}
 
         {messages.length === 0 && <EmptyState />}
@@ -975,7 +1120,7 @@ function SourceCard({ source, active, enabled = true, onClick, onToggle }) {
   );
 }
 
-function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onStar, starred }) {
+function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onSmartActions, onStar, starred }) {
   const meta = sourceMeta[message.source] || sourceMeta.email;
   const Icon = meta.icon;
   const replyHistory = JSON.parse(localStorage.getItem('onepoint_reply_history') || '{}');
@@ -983,7 +1128,18 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
 
   return (
     <div className="messageCard">
-      <button className="messageRow newReadableRow" onClick={onOpen}>
+      <button
+  className="messageRow newReadableRow"
+  onClick={onOpen}
+  onContextMenu={(e) => {
+    e.preventDefault();
+    onSmartActions?.();
+  }}
+  onDoubleClick={(e) => {
+    e.preventDefault();
+    onSmartActions?.();
+  }}
+>
         <div className="platformIcon" style={{ background: meta.colour }}>
           <Icon />
         </div>
@@ -1162,6 +1318,86 @@ function ChatScreen({
         </button>
       </div>
     </>
+  );
+}
+function SmartActionsModal({
+  message,
+  onClose,
+  onReplyLikeMe,
+  onFollowUp,
+  onVoiceSummary,
+  onArchive,
+  onDelete
+}) {
+  return (
+    <div className="modalOverlay">
+      <section className="smartActionSheet">
+        <div className="composeHeader">
+          <button onClick={onClose}>Cancel</button>
+          <h2>Smart Actions</h2>
+          <span />
+        </div>
+
+        <div className="smartActionPerson">
+          <div className="personAvatar">{initials(message.senderName)}</div>
+          <div>
+            <strong>{message.senderName}</strong>
+            <span>{message.text}</span>
+          </div>
+        </div>
+
+        <button className="smartActionButton" onClick={onReplyLikeMe}>
+          <Sparkles size={18} />
+          Reply like me
+        </button>
+
+        <button className="smartActionButton" onClick={onFollowUp}>
+          <Clock size={18} />
+          Set follow-up
+        </button>
+
+        <button className="smartActionButton" onClick={onVoiceSummary}>
+          <Mic size={18} />
+          Summarise voice/video note
+        </button>
+
+        <button className="smartActionButton" onClick={onArchive}>
+          <Archive size={18} />
+          Archive
+        </button>
+
+        <button className="smartActionButton danger" onClick={onDelete}>
+          <Trash2 size={18} />
+          Delete
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function VoiceSummaryModal({ summary, onClose }) {
+  return (
+    <div className="modalOverlay">
+      <section className="smartActionSheet">
+        <div className="composeHeader">
+          <button onClick={onClose}>Close</button>
+          <h2>AI Summary</h2>
+          <span />
+        </div>
+
+        <p className="voiceSummaryText">{summary.summary}</p>
+
+        <div className="voicePoints">
+          {summary.points.map((point) => (
+            <div key={point}>• {point}</div>
+          ))}
+        </div>
+
+        <div className="suggestionButton">
+          {summary.suggestedReply}
+        </div>
+      </section>
+    </div>
   );
 }
 function ComposeModal({ auth, onClose, onSend, onDraft }) {
@@ -1412,24 +1648,98 @@ function SearchScreen({ query, setQuery, messages, onOpenMessage, onDelete }) {
 }
 
 function ContactsScreen({ people, timelines }) {
+  const [selectedTimeline, setSelectedTimeline] = useState(null);
+
+  if (selectedTimeline) {
+    return (
+      <ScreenPage title={selectedTimeline.name} onBack={() => setSelectedTimeline(null)}>
+        <section className="timelineProfileCard">
+          <div className="personAvatar large">{initials(selectedTimeline.name)}</div>
+
+          <div>
+            <h3>{selectedTimeline.name}</h3>
+            <p>{selectedTimeline.messages.length} messages across {selectedTimeline.sources.length} apps</p>
+          </div>
+        </section>
+
+        <section className="timelineSources">
+          {selectedTimeline.sources.map((source) => {
+            const meta = sourceMeta[source] || sourceMeta.email;
+            const Icon = meta.icon;
+
+            return (
+              <div className="timelineSourcePill" key={source}>
+                <div className="sourceIcon small" style={{ background: meta.colour }}>
+                  <Icon />
+                </div>
+                <span>{meta.label}</span>
+              </div>
+            );
+          })}
+        </section>
+
+        <section className="smartMemoryCard">
+          <h3>Smart Memory</h3>
+
+          {selectedTimeline.memory?.notes?.length ? (
+            selectedTimeline.memory.notes.map((note) => (
+              <p key={note}>• {note}</p>
+            ))
+          ) : (
+            <p>No memory notes yet. OnePoint will learn from future conversations.</p>
+          )}
+        </section>
+
+        <section className="timelineThread">
+          {selectedTimeline.messages.map((message) => {
+            const meta = sourceMeta[message.source] || sourceMeta.email;
+            const Icon = meta.icon;
+            const intelligence = analyseMessage(message);
+
+            return (
+              <div className="timelineMessage" key={message.id}>
+                <div className="timelineMarker" style={{ background: meta.colour }}>
+                  <Icon size={14} />
+                </div>
+
+                <div className="timelineBubble">
+                  <div>
+                    <strong>{meta.label}</strong>
+                    <span>{timeAgo(message.receivedAt)}</span>
+                  </div>
+
+                  <p>{message.text}</p>
+
+                  <small>{intelligence.score}% · {intelligence.type}</small>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      </ScreenPage>
+    );
+  }
+
   return (
-    <ScreenPage title="Customer Timelines">
+    <ScreenPage title="Timelines">
+      <p className="centerSub">One person. Every app. One clean history.</p>
+
       <div className="contactsList">
         {timelines.map((item) => (
-          <div className="contactCard" key={item.name}>
+          <button
+            className={`timelineContactCard ${item.score >= 80 ? 'hot' : item.score >= 65 ? 'warm' : ''}`}
+            key={item.name}
+            onClick={() => setSelectedTimeline(item)}
+          >
             <div className="personAvatar">{initials(item.name)}</div>
 
             <div>
               <strong>{item.name}</strong>
-              <span>
-                {item.messages.length} messages · {item.sources.join(', ')}
-              </span>
+              <span>{item.messages.length} messages · {item.sources.join(', ')}</span>
             </div>
 
-            <button>
-              <MessageCircle size={17} />
-            </button>
-          </div>
+            <b>{item.score}%</b>
+          </button>
         ))}
 
         {!timelines.length &&
@@ -1481,11 +1791,30 @@ function FollowUpsScreen({ followUps, onComplete, onBack }) {
     </ScreenPage>
   );
 }
-function SettingsScreen({ auth, connectors, onToggleConnector, onLogout, requestNotifications }) {
+function SettingsScreen({ auth, connectors, onToggleConnector, onLogout, requestNotifications, theme, setTheme }) {
   return (
     <ScreenPage title="Settings">
       <section className="settingsCard">
         <h3>Account</h3>
+        <section className="settingsCard compactAppearance">
+  <h3>Appearance</h3>
+
+  <div className="themeCompactRow">
+    <span>Dark</span>
+
+    <button
+      className={`themeSlider ${theme === 'light' ? 'light' : ''}`}
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      aria-label="Toggle theme"
+    >
+      <div className="sliderTrack">
+        <div className="sliderThumb" />
+      </div>
+    </button>
+
+    <span>Light</span>
+  </div>
+</section>
         <SettingRow icon={UserRound} title="Profile" value={auth.user?.name || 'User'} />
         <SettingRow icon={Mail} title="Email" value={auth.user?.email || 'Account email'} />
         <SettingRow icon={Shield} title="Security" value="Change password" />
@@ -1732,8 +2061,8 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-function PhoneShell({ children }) {
-  return <main className="phoneShell">{children}</main>;
+function PhoneShell({ children, theme = 'dark' }) {
+  return <main className={`phoneShell ${theme === 'light' ? 'lightMode' : ''}`}>{children}</main>;
 }
 
 function folderTitle(folder) {
