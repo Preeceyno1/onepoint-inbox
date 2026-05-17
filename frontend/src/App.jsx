@@ -171,6 +171,23 @@ function buildDailyBriefing(messages = [], followUps = []) {
   };
 }
 
+function buildWaitingOn(sentMessages = [], liveMessages = []) {
+  return sentMessages
+    .filter((sent) => {
+      const hasReply = liveMessages.some(
+        (message) =>
+          message.senderName?.toLowerCase() === sent.senderName?.toLowerCase() &&
+          new Date(message.receivedAt || 0) > new Date(sent.receivedAt || 0)
+      );
+
+      return !hasReply;
+    })
+    .map((sent) => ({
+      ...sent,
+      waitingSince: sent.receivedAt || new Date().toISOString()
+    }));
+}
+
 function makeVoiceNoteSummary(message) {
   return {
     summary: `Voice note summary for ${message.senderName}: this appears to need a short, clear response.`,
@@ -183,10 +200,168 @@ function makeVoiceNoteSummary(message) {
   };
 }
 
+function detectMedia(message) {
+  const text = (message.text || '').toLowerCase();
+
+  if (message.mediaUrl) {
+    return {
+      type: message.mediaType || 'image',
+      url: message.mediaUrl,
+      title: message.mediaTitle || 'Media attachment'
+    };
+  }
+
+  if (/reel|video|watch|clip|tiktok|youtube/.test(text)) {
+    return {
+      type: 'video',
+      url: null,
+      title: 'Video / reel preview'
+    };
+  }
+
+  if (/voice note|voice message|audio/.test(text)) {
+    return {
+      type: 'voice',
+      url: null,
+      title: 'Voice note'
+    };
+  }
+
+  if (/photo|image|picture|screenshot/.test(text)) {
+    return {
+      type: 'image',
+      url: null,
+      title: 'Image preview'
+    };
+  }
+
+  return null;
+}
+
+function getContactPhoto(message = {}) {
+  if (message.avatarUrl) return message.avatarUrl;
+  if (message.profilePhoto) return message.profilePhoto;
+  if (message.senderPhoto) return message.senderPhoto;
+
+  const name = encodeURIComponent(message.senderName || 'User');
+
+  return `https://ui-avatars.com/api/?name=${name}&background=7c4dff&color=fff&bold=true`;
+}
+
+function getPreferredSource(messages = []) {
+  const counts = {};
+
+  messages.forEach((message) => {
+    counts[message.source] = (counts[message.source] || 0) + 1;
+  });
+
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'email';
+}
+
+function getContactInsights(timeline = {}) {
+  const messages = timeline.messages || [];
+  const scores = messages.map((m) => analyseMessage(m).score);
+  const topScore = scores.length ? Math.max(...scores) : 0;
+  const salesCount = messages.filter((m) => analyseMessage(m).type === 'Sales lead').length;
+  const followCount = messages.filter((m) => analyseMessage(m).type === 'Follow-up').length;
+  const preferredSource = getPreferredSource(messages);
+
+  return {
+    topScore,
+    salesCount,
+    followCount,
+    preferredSource,
+    status:
+      topScore >= 80
+        ? 'High priority relationship'
+        : topScore >= 65
+        ? 'Warm contact'
+        : 'Normal contact'
+  };
+}
+
 export default function App() {
   const [auth, setAuth] = useState(() =>
     JSON.parse(localStorage.getItem('onepoint_auth') || 'null')
   );
+
+  function getContactPhoto(message) {
+  if (message.avatarUrl) return message.avatarUrl;
+  if (message.profilePhoto) return message.profilePhoto;
+  if (message.senderPhoto) return message.senderPhoto;
+
+  const name = encodeURIComponent(message.senderName || 'User');
+  return `https://ui-avatars.com/api/?name=${name}&background=7c4dff&color=fff&bold=true`;
+}
+
+function detectMedia(message) {
+  const text = (message.text || '').toLowerCase();
+
+  if (message.mediaUrl) {
+    return {
+      type: message.mediaType || 'image',
+      url: message.mediaUrl,
+      title: message.mediaTitle || 'Media attachment'
+    };
+  }
+
+  if (/reel|video|watch|clip|tiktok|youtube/.test(text)) {
+    return {
+      type: 'video',
+      url: null,
+      title: 'Video / reel preview'
+    };
+  }
+
+  if (/voice note|voice message|audio/.test(text)) {
+    return {
+      type: 'voice',
+      url: null,
+      title: 'Voice note'
+    };
+  }
+
+  if (/photo|image|picture|screenshot/.test(text)) {
+    return {
+      type: 'image',
+      url: null,
+      title: 'Image preview'
+    };
+  }
+
+  return null;
+}
+
+function getPreferredSource(messages = []) {
+  const counts = {};
+
+  messages.forEach((message) => {
+    counts[message.source] = (counts[message.source] || 0) + 1;
+  });
+
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'email';
+}
+
+function getContactInsights(timeline) {
+  const messages = timeline.messages || [];
+  const topScore = Math.max(...messages.map((m) => analyseMessage(m).score), 0);
+  const salesCount = messages.filter((m) => analyseMessage(m).type === 'Sales lead').length;
+  const followCount = messages.filter((m) => analyseMessage(m).type === 'Follow-up').length;
+  const preferredSource = getPreferredSource(messages);
+
+  return {
+    topScore,
+    salesCount,
+    followCount,
+    preferredSource,
+    status:
+      topScore >= 80
+        ? 'High priority relationship'
+        : topScore >= 65
+        ? 'Warm contact'
+        : 'Normal contact'
+  };
+}
 
   function setAuthAndStore(next) {
     localStorage.setItem('onepoint_auth', JSON.stringify(next));
@@ -307,7 +482,20 @@ useEffect(() => {
   const nextMessages = await apiGet('/api/messages');
   const nextConnectors = await apiGet('/api/connectors');
 
-  setMessages(Array.isArray(nextMessages) ? nextMessages : []);
+  const incoming = Array.isArray(nextMessages) ? nextMessages : [];
+
+if (messages.length && incoming.length > messages.length) {
+  const newest = incoming[0];
+
+  if (Notification.permission === 'granted') {
+    new Notification(newest.senderName || 'New message', {
+      body: newest.text || 'You received a message',
+      icon: '/icon-192.png'
+    });
+  }
+}
+
+setMessages(incoming);
   setConnectors(Array.isArray(nextConnectors) ? nextConnectors : []);
 
   try {
@@ -378,6 +566,10 @@ const dailyBriefing = useMemo(() => {
   return buildDailyBriefing(liveMessages, followUps);
 }, [liveMessages, followUps]);
 
+const waitingOn = useMemo(() => {
+  return buildWaitingOn(sentMessages, liveMessages);
+}, [sentMessages, liveMessages]);
+
   const customerTimelines = useMemo(() => {
     const grouped = {};
 
@@ -426,6 +618,7 @@ return Object.values(grouped)
       drafts: draftMessages.length,
       deleted: deletedMessages.length,
       followups: followUps.length,
+      waiting: waitingOn.length,
       timelines: customerTimelines.length
     };
   }, [liveMessages, sentMessages, draftMessages, deletedMessages, followUps, customerTimelines]);
@@ -684,28 +877,50 @@ function showVoiceSummary(message) {
   }
 
   async function sendCompose(message) {
-    setReplyHistory((current) => ({
-  ...current,
-  [message.senderName]: (current[message.senderName] || 0) + 1
-}));
-    await apiPost('/api/user-items/sent', message);
+  const outgoingMessage = {
+    ...message,
+    id: message.id || crypto.randomUUID(),
+    receivedAt: message.receivedAt || new Date().toISOString(),
+    read: true,
+    archived: false
+  };
 
-    setComposeOpen(false);
-    setScreen('sent');
-    setFolder('sent');
+  setSentMessages((current) => [outgoingMessage, ...current]);
 
+  setComposeOpen(false);
+  setScreen('sent');
+  setFolder('sent');
+
+  try {
+    await apiPost('/api/user-items/sent', outgoingMessage);
     await load();
+  } catch (error) {
+    console.warn('Backend save failed, message kept locally', error);
   }
+}
 
   async function saveDraft(message) {
-    await apiPost('/api/user-items/drafts', message);
+  const draftMessage = {
+    ...message,
+    id: message.id || crypto.randomUUID(),
+    receivedAt: message.receivedAt || new Date().toISOString(),
+    read: true,
+    archived: false
+  };
 
-    setComposeOpen(false);
-    setScreen('drafts');
-    setFolder('drafts');
+  setDraftMessages((current) => [draftMessage, ...current]);
 
+  setComposeOpen(false);
+  setScreen('drafts');
+  setFolder('drafts');
+
+  try {
+    await apiPost('/api/user-items/drafts', draftMessage);
     await load();
+  } catch (error) {
+    console.warn('Backend draft save failed, draft kept locally', error);
   }
+}
 
   async function toggleStar(id) {
     if (starredIds.includes(id)) {
@@ -843,6 +1058,17 @@ function showVoiceSummary(message) {
           }}
         />
       )}
+
+{screen === 'waiting' && (
+  <WaitingOnScreen
+    waitingOn={waitingOn}
+    onBack={() => {
+      setScreen('inbox');
+      setFolder('inbox');
+    }}
+    onFollowUp={createFollowUp}
+  />
+)}
 
       {['archive', 'sent', 'drafts', 'deleted'].includes(screen) && (
         <FolderScreen
@@ -1125,11 +1351,16 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
   const Icon = meta.icon;
   const replyHistory = JSON.parse(localStorage.getItem('onepoint_reply_history') || '{}');
   const intelligence = analyseMessage(message, replyHistory[message.senderName] || 0);
+  const media = detectMedia(message);
+  const photo = getContactPhoto(message);
+  const relationshipLevel = getRelationshipLevel(message, {});
 
   return (
     <div className="messageCard">
-      <button
+      <div
   className="messageRow newReadableRow"
+  role="button"
+  tabIndex={0}
   onClick={onOpen}
   onContextMenu={(e) => {
     e.preventDefault();
@@ -1144,10 +1375,10 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
           <Icon />
         </div>
 
-        <div className="personAvatar">
-          {initials(message.senderName)}
-          {!message.read && <i />}
-        </div>
+        <div className={`personAvatar photoAvatar relationshipAvatar ${relationshipLevel}`}>
+        <img src={photo} alt={message.senderName || 'Contact'} />
+        {!message.read && <i />}
+</div>
 
         <div className="messageContent">
           <div className="messageTop">
@@ -1162,16 +1393,17 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
           <small>
             <span style={{ color: meta.colour }}>{meta.label}</span> · {timeAgo(message.receivedAt)}
           </small>
-          {/(reel|video|sent you a reel|sent you a video)/i.test(message.text || '') && (
+          {media && (
   <button
-    className="videoPreview"
+    className={`mediaPreview ${media.type}`}
     type="button"
     onClick={(e) => {
       e.stopPropagation();
-      alert('Video preview would open here when connected to the real platform.');
+      alert(`${media.title} would open here when connected to the real platform.`);
     }}
   >
-    <span>▶</span>
+    <span>{media.type === 'voice' ? '🎙️' : media.type === 'video' ? '▶' : '🖼️'}</span>
+    <small>{media.title}</small>
   </button>
 )}
 
@@ -1190,7 +1422,7 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
         >
           <Star size={16} />
         </button>
-      </button>
+      </div>
 
       <div className="messageQuickActions">
         <button className="quickAction archiveActionButton" type="button" onClick={onArchive}>
@@ -1510,6 +1742,14 @@ function SideMenu({ open, onClose, auth, folder, setFolder, counts, onLogout }) 
         />
 
         <MenuItem
+          icon={Send}
+          label="Waiting On"
+          count={counts.waiting}
+          active={folder === 'waiting'}
+          onClick={() => setFolder('waiting')}
+        />
+
+        <MenuItem
           icon={Users}
           label="Timelines"
           count={counts.timelines}
@@ -1653,14 +1893,38 @@ function ContactsScreen({ people, timelines }) {
   if (selectedTimeline) {
     return (
       <ScreenPage title={selectedTimeline.name} onBack={() => setSelectedTimeline(null)}>
-        <section className="timelineProfileCard">
-          <div className="personAvatar large">{initials(selectedTimeline.name)}</div>
+        <section className="timelineProfileCard contactIntelligenceHeader">
+  <div className={`personAvatar large photoAvatar relationshipAvatar ${getContactInsights(selectedTimeline).topScore >= 80 ? 'hot' : getContactInsights(selectedTimeline).topScore >= 65 ? 'warm' : 'normal'}`}>
+    <img
+      src={getContactPhoto(selectedTimeline.messages[0])}
+      alt={selectedTimeline.name}
+    />
+  </div>
 
-          <div>
-            <h3>{selectedTimeline.name}</h3>
-            <p>{selectedTimeline.messages.length} messages across {selectedTimeline.sources.length} apps</p>
-          </div>
-        </section>
+  <div>
+    <h3>{selectedTimeline.name}</h3>
+
+    <p>
+      {selectedTimeline.messages.length} messages across{' '}
+      {selectedTimeline.sources.length} apps
+    </p>
+
+    <div className="contactInsightPills">
+      <span>
+        {getContactInsights(selectedTimeline).topScore}% priority
+      </span>
+
+      <span>
+        {getContactInsights(selectedTimeline).status}
+      </span>
+
+      <span>
+        Prefers{' '}
+        {sourceMeta[getContactInsights(selectedTimeline).preferredSource]?.label || 'Email'}
+      </span>
+    </div>
+  </div>
+</section>
 
         <section className="timelineSources">
           {selectedTimeline.sources.map((source) => {
@@ -1791,6 +2055,40 @@ function FollowUpsScreen({ followUps, onComplete, onBack }) {
     </ScreenPage>
   );
 }
+function WaitingOnScreen({ waitingOn, onBack, onFollowUp }) {
+  return (
+    <ScreenPage title="Waiting On" onBack={onBack}>
+      <p className="centerSub">
+        People you have replied to but have not heard back from yet.
+      </p>
+
+      <div className="messageList">
+        {waitingOn.map((message) => (
+          <div className="messageCard" key={message.id}>
+            <div className="messageContent">
+              <strong>{message.senderName}</strong>
+              <p>{message.text}</p>
+              <small>Waiting since {timeAgo(message.waitingSince)}</small>
+            </div>
+
+            <div className="messageQuickActions">
+              <button
+                className="quickAction followActionButton"
+                onClick={() => onFollowUp(message)}
+              >
+                <Clock size={15} />
+                Follow up
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {!waitingOn.length && <EmptyState />}
+      </div>
+    </ScreenPage>
+  );
+}
+
 function SettingsScreen({ auth, connectors, onToggleConnector, onLogout, requestNotifications, theme, setTheme }) {
   return (
     <ScreenPage title="Settings">

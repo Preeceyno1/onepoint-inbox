@@ -1869,3 +1869,124 @@ button {
   color: #101828 !important;
   border-color: rgba(16, 24, 40, 0.1) !important;
 }
+.photoAvatar {
+  overflow: hidden;
+  position: relative;
+}
+
+.photoAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.contactIntelligenceHeader {
+  align-items: start;
+}
+
+.contactInsightPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.contactInsightPills span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(124, 77, 255, 0.12);
+  border: 1px solid rgba(124, 77, 255, 0.18);
+  color: #d9ccff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mediaPreview,
+.timelineMediaPreview {
+  margin-top: 8px;
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.28)),
+    url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=1200&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+}
+
+.mediaPreview.voice,
+.timelineMediaPreview.voice {
+  background:
+    linear-gradient(135deg, rgba(124,77,255,.75), rgba(91,53,213,.85));
+}
+
+.mediaPreview.image,
+.timelineMediaPreview.image {
+  background:
+    linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.28)),
+    url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1200&auto=format&fit=crop');
+  background-size: cover;
+}
+
+.mediaPreview small,
+.timelineMediaPreview small {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mediaPreview span,
+.timelineMediaPreview span {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.45);
+  color: white;
+  font-size: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.timelineBubble {
+  overflow: hidden;
+}
+
+.phoneShell.lightMode .contactInsightPills span {
+  background: rgba(124, 77, 255, 0.1);
+  color: #5b35d5;
+}
+
+.phoneShell.lightMode .mediaPreview span,
+.phoneShell.lightMode .timelineMediaPreview span {
+  background: rgba(255,255,255,.7);
+  color: #101828;
+}
+.relationshipAvatar {
+  border: 2px solid transparent;
+}
+
+.relationshipAvatar.normal {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.relationshipAvatar.warm {
+  border-color: rgba(124, 77, 255, 0.75);
+  box-shadow: 0 0 14px rgba(124, 77, 255, 0.32);
+}
+
+.relationshipAvatar.hot {
+  border-color: rgba(250, 204, 21, 0.95);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.38);
+}
+
+.phoneShell.lightMode .relationshipAvatar.normal {
+  border-color: rgba(16, 24, 40, 0.14);
+}

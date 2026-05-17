@@ -3,7 +3,20 @@
   "short_name": "OnePoint",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080b14",
-  "theme_color": "#080b14",
-  "icons": []
+  "background_color": "#070b17",
+  "theme_color": "#7c4dff",
+  "orientation": "portrait",
+  "description": "Unified AI-powered messaging inbox.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }

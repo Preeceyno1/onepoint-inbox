@@ -220,5 +220,43 @@
       "snoozedUntil": null,
       "notes": []
     }
+  ],
+  "userItems": [
+    {
+      "id": "d8d27ff0-e249-4153-b5b5-db6c6b6f3f18",
+      "userId": "1c640d62-832d-4b72-bceb-3fac8e9e4ef9",
+      "type": "sent",
+      "data": {
+        "id": "e67ddcf8-ee53-48b8-a4ea-e41c91e5e5a3",
+        "senderName": "Draft recipient",
+        "senderHandle": "Sent",
+        "text": "test — ",
+        "source": "email",
+        "receivedAt": "2026-05-16T20:55:27.046Z",
+        "read": true,
+        "priority": "normal",
+        "intent": "general",
+        "archived": false
+      },
+      "createdAt": "2026-05-16T20:55:28.793Z"
+    },
+    {
+      "id": "b1469bad-c8c4-4df9-97b1-0ace340fefb0",
+      "userId": "1c640d62-832d-4b72-bceb-3fac8e9e4ef9",
+      "type": "sent",
+      "data": {
+        "id": "82336e4e-b484-430a-8176-60e1cfeda6b9",
+        "senderName": "Draft recipient",
+        "senderHandle": "Sent",
+        "text": "test — yo yo yo ",
+        "source": "email",
+        "receivedAt": "2026-05-16T21:47:44.735Z",
+        "read": true,
+        "priority": "normal",
+        "intent": "general",
+        "archived": false
+      },
+      "createdAt": "2026-05-16T21:47:46.699Z"
+    }
   ]
 }

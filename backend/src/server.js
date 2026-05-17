@@ -332,118 +332,150 @@ app.post('/api/messages/:id/move-folder', auth, async (req, res) => {
   res.json(dbMessageToFrontend(msg));
 });
 const port = process.env.PORT || 4000;
-app.get('/api/user-items/:type', auth, async (req, res) => {
-  const { type } = req.params;
+app.get('/api/user-items/:type', auth, (req, res) => {
+  const db = readDb();
+  db.userItems ||= [];
 
-  const result = await pool.query(
-    `select * from user_items 
-     where user_id = $1 and item_type = $2 
-     order by created_at desc`,
-    [req.user.id, type]
-  );
+  const items = db.userItems
+    .filter((item) => item.userId === req.user.sub && item.type === req.params.type)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map((item) => item.data);
 
-  res.json(result.rows.map((row) => row.item_data));
+  res.json(items);
 });
 
-app.post('/api/user-items/:type', auth, async (req, res) => {
-  const { type } = req.params;
+app.post('/api/user-items/:type', auth, (req, res) => {
+  const db = readDb();
+  db.userItems ||= [];
 
-  const result = await pool.query(
-    `insert into user_items (user_id, item_type, item_data)
-     values ($1, $2, $3)
-     returning *`,
-    [req.user.id, type, req.body]
-  );
+  const item = {
+    id: uuid(),
+    userId: req.user.sub,
+    type: req.params.type,
+    data: req.body,
+    createdAt: new Date().toISOString()
+  };
 
-  res.json(result.rows[0].item_data);
+  db.userItems.push(item);
+  writeDb(db);
+
+  res.json(item.data);
 });
 
-app.delete('/api/user-items/:type/:id', auth, async (req, res) => {
-  const { type, id } = req.params;
+app.delete('/api/user-items/:type/:id', auth, (req, res) => {
+  const db = readDb();
+  db.userItems ||= [];
 
-  await pool.query(
-    `delete from user_items 
-     where user_id = $1 
-     and item_type = $2 
-     and item_data->>'id' = $3`,
-    [req.user.id, type, id]
+  db.userItems = db.userItems.filter(
+    (item) =>
+      !(
+        item.userId === req.user.sub &&
+        item.type === req.params.type &&
+        item.data?.id === req.params.id
+      )
   );
 
+  writeDb(db);
   res.json({ ok: true });
 });
 
-app.get('/api/message-flags/:flagType', auth, async (req, res) => {
-  const { flagType } = req.params;
+app.get('/api/message-flags/:flagType', auth, (req, res) => {
+  const db = readDb();
+  db.messageFlags ||= [];
 
-  const result = await pool.query(
-    `select message_id from message_flags
-     where user_id = $1 and flag_type = $2`,
-    [req.user.id, flagType]
-  );
+  const flags = db.messageFlags
+    .filter((flag) => flag.userId === req.user.sub && flag.flagType === req.params.flagType)
+    .map((flag) => flag.messageId);
 
-  res.json(result.rows.map((row) => row.message_id));
+  res.json(flags);
 });
 
-app.post('/api/message-flags/:flagType/:messageId', auth, async (req, res) => {
-  const { flagType, messageId } = req.params;
+app.post('/api/message-flags/:flagType/:messageId', auth, (req, res) => {
+  const db = readDb();
+  db.messageFlags ||= [];
 
-  await pool.query(
-    `insert into message_flags (user_id, message_id, flag_type)
-     values ($1, $2, $3)
-     on conflict (user_id, message_id, flag_type) do nothing`,
-    [req.user.id, messageId, flagType]
+  const exists = db.messageFlags.some(
+    (flag) =>
+      flag.userId === req.user.sub &&
+      flag.flagType === req.params.flagType &&
+      flag.messageId === req.params.messageId
   );
 
+  if (!exists) {
+    db.messageFlags.push({
+      id: uuid(),
+      userId: req.user.sub,
+      flagType: req.params.flagType,
+      messageId: req.params.messageId,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  writeDb(db);
   res.json({ ok: true });
 });
 
-app.delete('/api/message-flags/:flagType/:messageId', auth, async (req, res) => {
-  const { flagType, messageId } = req.params;
+app.delete('/api/message-flags/:flagType/:messageId', auth, (req, res) => {
+  const db = readDb();
+  db.messageFlags ||= [];
 
-  await pool.query(
-    `delete from message_flags
-     where user_id = $1 and message_id = $2 and flag_type = $3`,
-    [req.user.id, messageId, flagType]
+  db.messageFlags = db.messageFlags.filter(
+    (flag) =>
+      !(
+        flag.userId === req.user.sub &&
+        flag.flagType === req.params.flagType &&
+        flag.messageId === req.params.messageId
+      )
   );
 
+  writeDb(db);
   res.json({ ok: true });
 });
 
-app.get('/api/follow-ups', auth, async (req, res) => {
-  const result = await pool.query(
-    `select * from follow_ups
-     where user_id = $1 and completed = false
-     order by due_at asc`,
-    [req.user.id]
-  );
+app.get('/api/follow-ups', auth, (req, res) => {
+  const db = readDb();
+  db.followUps ||= [];
 
-  res.json(result.rows);
+  const followUps = db.followUps
+    .filter((item) => item.userId === req.user.sub && !item.completed)
+    .sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+
+  res.json(followUps);
 });
 
-app.post('/api/follow-ups', auth, async (req, res) => {
-  const { messageId, senderName, text, source, dueAt } = req.body;
+app.post('/api/follow-ups', auth, (req, res) => {
+  const db = readDb();
+  db.followUps ||= [];
 
-  const result = await pool.query(
-    `insert into follow_ups 
-     (user_id, message_id, sender_name, message_text, source, due_at)
-     values ($1, $2, $3, $4, $5, $6)
-     returning *`,
-    [req.user.id, messageId, senderName, text, source, dueAt]
-  );
+  const followUp = {
+    id: uuid(),
+    userId: req.user.sub,
+    message_id: req.body.messageId,
+    sender_name: req.body.senderName,
+    message_text: req.body.text,
+    source: req.body.source,
+    due_at: req.body.dueAt,
+    completed: false,
+    created_at: new Date().toISOString()
+  };
 
-  res.json(result.rows[0]);
+  db.followUps.push(followUp);
+  writeDb(db);
+
+  res.json(followUp);
 });
 
-app.patch('/api/follow-ups/:id/complete', auth, async (req, res) => {
-  const { id } = req.params;
+app.patch('/api/follow-ups/:id/complete', auth, (req, res) => {
+  const db = readDb();
+  db.followUps ||= [];
 
-  await pool.query(
-    `update follow_ups
-     set completed = true
-     where id = $1 and user_id = $2`,
-    [id, req.user.id]
+  db.followUps = db.followUps.map((item) =>
+    item.id === req.params.id && item.userId === req.user.sub
+      ? { ...item, completed: true }
+      : item
   );
 
+  writeDb(db);
   res.json({ ok: true });
 });
 server.listen(port, () => console.log(`OnePoint Inbox backend running on http://localhost:${port}`));
