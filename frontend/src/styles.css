@@ -3053,3 +3053,40 @@ button {
   opacity: 0.16;
   pointer-events: none;
 }
+.messageRow {
+  transition: transform 0.16s ease !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+.messageCard {
+  overflow: hidden !important;
+}
+
+.messageCard::before,
+.messageCard::after {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 42px;
+  border-radius: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.messageCard::before {
+  content: "⏰ Follow";
+  left: 8px;
+  background: rgba(59,130,246,.18);
+  color: #93c5fd;
+}
+
+.messageCard::after {
+  content: "📦 Archive";
+  right: 8px;
+  background: rgba(124,77,255,.18);
+  color: #d9ccff;
+}

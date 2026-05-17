@@ -1492,6 +1492,7 @@ const moreQuickReplies = [
 
 const [touchStartX, setTouchStartX] = useState(null);
 const [touchEndX, setTouchEndX] = useState(null);
+const [swipeOffset, setSwipeOffset] = useState(0);
 
 function handleSwipeEnd() {
   if (touchStartX === null || touchEndX === null) return;
@@ -1506,6 +1507,7 @@ function handleSwipeEnd() {
     onFollowUp?.();
   }
 
+  setSwipeOffset(0);
   setTouchStartX(null);
   setTouchEndX(null);
 }
@@ -1514,11 +1516,29 @@ function handleSwipeEnd() {
     <div className="messageCard">
       <div
   className="messageRow newReadableRow"
+  style={{
+  transform: `translateX(${swipeOffset}px)`
+}}
   role="button"
   tabIndex={0}
   onClick={onOpen}
   onTouchStart={(e) => setTouchStartX(e.changedTouches[0].screenX)}
-  onTouchMove={(e) => setTouchEndX(e.changedTouches[0].screenX)}
+  onTouchMove={(e) => {
+  const currentX = e.changedTouches[0].screenX;
+  setTouchEndX(currentX);
+
+  if (touchStartX !== null) {
+    const diff = currentX - touchStartX;
+
+    if (diff < 0) {
+      setSwipeOffset(Math.max(diff, -80));
+    }
+
+    if (diff > 0) {
+      setSwipeOffset(Math.min(diff, 80));
+    }
+  }
+}}
   onTouchEnd={handleSwipeEnd}
   onContextMenu={(e) => {
     e.preventDefault();
