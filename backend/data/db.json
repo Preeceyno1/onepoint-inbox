@@ -257,6 +257,24 @@
         "archived": false
       },
       "createdAt": "2026-05-16T21:47:46.699Z"
+    },
+    {
+      "id": "33f3e38a-43a2-4fe6-9857-1ddaf2cddad8",
+      "userId": "1c640d62-832d-4b72-bceb-3fac8e9e4ef9",
+      "type": "sent",
+      "data": {
+        "id": "a37e4984-0cbf-4a1f-b1ae-605c110a2a4d",
+        "senderName": "Draft recipient",
+        "senderHandle": "Sent",
+        "text": "test test — ",
+        "source": "email",
+        "receivedAt": "2026-05-17T16:29:30.724Z",
+        "read": true,
+        "priority": "normal",
+        "intent": "general",
+        "archived": false
+      },
+      "createdAt": "2026-05-17T16:29:32.890Z"
     }
   ]
 }

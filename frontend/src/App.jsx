@@ -106,7 +106,39 @@ function makeLocalReply(message) {
   return `Hi ${message.senderName}, thanks for your message. I’ll come back to you shortly.`;
 }
 
-/* PASTE THE NEW FUNCTIONS HERE */
+function generateQuickReplies(message) {
+  const intel = analyseMessage(message);
+
+  if (intel.type === 'Sales lead') {
+    return [
+      'I can send pricing over now.',
+      'Happy to help — what package are you interested in?',
+      'Would you like me to send more details?'
+    ];
+  }
+
+  if (intel.type === 'Priority') {
+    return [
+      'I’ll look into this now.',
+      'Thanks for letting me know.',
+      'I’ll come back to you shortly.'
+    ];
+  }
+
+  if (intel.type === 'Follow-up') {
+    return [
+      'Just following this up.',
+      'Let me know if you still need help.',
+      'Happy to continue this conversation.'
+    ];
+  }
+
+  return [
+    'Thanks for your message.',
+    'Sounds good to me.',
+    'I’ll get back to you shortly.'
+  ];
+}
 
 function getRelationshipLevel(message, replyHistory = {}) {
   const replies = replyHistory[message.senderName] || 0;
@@ -406,6 +438,16 @@ function OnePointMobile({ auth, onLogout }) {
   const [calmMode, setCalmMode] = useState(false);
   const [inboxMode, setInboxMode] = useState('personal');
   const [aiOutput, setAiOutput] = useState('');
+  const [teamFilter, setTeamFilter] = useState('all');
+const [teamMembers] = useState([
+  { id: 'samuel', name: 'Samuel', avatar: 'S' },
+  { id: 'sales', name: 'Sales', avatar: 'SA' },
+  { id: 'support', name: 'Support', avatar: 'SU' },
+  { id: 'admin', name: 'Admin', avatar: 'AD' }
+]);
+const [assignments, setAssignments] = useState(() =>
+  JSON.parse(localStorage.getItem('onepoint_assignments') || '{}')
+);
   const [smartActionsOpen, setSmartActionsOpen] = useState(null);
   const [voiceSummary, setVoiceSummary] = useState(null);
   const [theme, setTheme] = useState(() =>
@@ -418,6 +460,10 @@ useEffect(() => {
   const [replyHistory, setReplyHistory] = useState(() =>
   JSON.parse(localStorage.getItem('onepoint_reply_history') || '{}')
 );
+
+useEffect(() => {
+  localStorage.setItem('onepoint_assignments', JSON.stringify(assignments));
+}, [assignments]);
 
   const headers = {
     Authorization: `Bearer ${auth.token}`,
@@ -621,7 +667,24 @@ return Object.values(grouped)
       waiting: waitingOn.length,
       timelines: customerTimelines.length
     };
+
   }, [liveMessages, sentMessages, draftMessages, deletedMessages, followUps, customerTimelines]);
+
+  useEffect(() => {
+  const badgeCount = counts.unread + counts.followups + counts.waiting;
+
+  if ('setAppBadge' in navigator) {
+    if (badgeCount > 0) {
+      navigator.setAppBadge(badgeCount);
+    } else {
+      navigator.clearAppBadge();
+    }
+  }
+
+  document.title = badgeCount > 0
+    ? `(${badgeCount}) OnePoint Inbox`
+    : 'OnePoint Inbox';
+}, [counts.unread, counts.followups, counts.waiting]);
 
   const visibleMessages = useMemo(() => {
     if (folder === 'sent') return sentMessages;
@@ -657,7 +720,12 @@ return Object.values(grouped)
             )
           : true;
 
-      return matchesQuery && matchesSource && sourceAllowed && matchesFolder && matchesSmart && matchesMode;
+      const matchesTeam =
+  teamFilter === 'all'
+    ? true
+    : assignments[message.id] === teamFilter;
+
+return matchesQuery && matchesSource && sourceAllowed && matchesFolder && matchesSmart && matchesMode && matchesTeam;
     });
 
     if (calmMode) {
@@ -676,7 +744,9 @@ return Object.values(grouped)
     folder,
     smartFilter,
     calmMode,
-    inboxMode
+    inboxMode,
+    teamFilter,
+    assignments
   ]);
 
   async function toggleConnector(source, enabled) {
@@ -865,6 +935,13 @@ function showVoiceSummary(message) {
 
     setAiOutput(`Suggested reply to ${top.senderName}: ${makeLocalReply(top)}`);
   }
+   
+  function assignMessage(messageId, memberId) {
+  setAssignments((current) => ({
+    ...current,
+    [messageId]: memberId
+  }));
+}
 
   function prioritizeInbox() {
     setSmartFilter('priority');
@@ -1009,6 +1086,15 @@ function showVoiceSummary(message) {
           inboxMode={inboxMode}
           setInboxMode={setInboxMode}
           openSmartActions={openSmartActions}
+          teamMembers={teamMembers}
+          teamFilter={teamFilter}
+          setTeamFilter={setTeamFilter}
+          assignments={assignments}
+          assignMessage={assignMessage}
+          onQuickReply={(message, reply) => {
+          setReplyDraft(reply);
+          setSelectedMessage(message);
+}}
         />
       )}
 
@@ -1166,7 +1252,13 @@ function InboxScreen({
   calmMode,
   setCalmMode,
   inboxMode,
-  setInboxMode
+  setInboxMode,
+  teamMembers,
+  teamFilter,
+  setTeamFilter,
+  assignments,
+  onQuickReply,
+  assignMessage
 }) {
   return (
     <>
@@ -1215,6 +1307,25 @@ function InboxScreen({
           {inboxMode === 'business' ? 'Business mode' : 'Personal mode'}
         </button>
       </div>
+
+<div className="teamFilterBar">
+  <button
+    className={teamFilter === 'all' ? 'active' : ''}
+    onClick={() => setTeamFilter('all')}
+  >
+    All team
+  </button>
+
+  {teamMembers.map((member) => (
+    <button
+      key={member.id}
+      className={teamFilter === member.id ? 'active' : ''}
+      onClick={() => setTeamFilter(member.id)}
+    >
+      {member.name}
+    </button>
+  ))}
+</div>
 
       <div className="smartChips">
         <FilterChip active={smartFilter === 'all'} onClick={() => setSmartFilter('all')}>
@@ -1293,6 +1404,10 @@ function InboxScreen({
   onSmartActions={() => openSmartActions(message)}
   onStar={() => onStar(message.id)}
   starred={starredIds.includes(message.id)}
+  teamMembers={teamMembers}
+  assignedTo={assignments[message.id]}
+  onQuickReply={onQuickReply}
+  assignMessage={(memberId) => assignMessage(message.id, memberId)}
 />
         ))}
 
@@ -1346,7 +1461,20 @@ function SourceCard({ source, active, enabled = true, onClick, onToggle }) {
   );
 }
 
-function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onSmartActions, onStar, starred }) {
+function SwipeMessageRow({
+  message,
+  onOpen,
+  onQuickReply,
+  onArchive,
+  onDelete,
+  onFollowUp,
+  onSmartActions,
+  onStar,
+  starred,
+  teamMembers = [],
+  assignedTo,
+  assignMessage
+}) {
   const meta = sourceMeta[message.source] || sourceMeta.email;
   const Icon = meta.icon;
   const replyHistory = JSON.parse(localStorage.getItem('onepoint_reply_history') || '{}');
@@ -1354,6 +1482,33 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
   const media = detectMedia(message);
   const photo = getContactPhoto(message);
   const relationshipLevel = getRelationshipLevel(message, {});
+  const quickReplies = generateQuickReplies(message);
+  const [quickRepliesOpen, setQuickRepliesOpen] = useState(false);
+const moreQuickReplies = [
+  ...quickReplies,
+  'Is there anything else I can help with?',
+  'Let me know if you have any other questions!'
+];
+
+const [touchStartX, setTouchStartX] = useState(null);
+const [touchEndX, setTouchEndX] = useState(null);
+
+function handleSwipeEnd() {
+  if (touchStartX === null || touchEndX === null) return;
+
+  const distance = touchStartX - touchEndX;
+
+  if (distance > 90) {
+    onArchive?.();
+  }
+
+  if (distance < -90) {
+    onFollowUp?.();
+  }
+
+  setTouchStartX(null);
+  setTouchEndX(null);
+}
 
   return (
     <div className="messageCard">
@@ -1362,6 +1517,9 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
   role="button"
   tabIndex={0}
   onClick={onOpen}
+  onTouchStart={(e) => setTouchStartX(e.changedTouches[0].screenX)}
+  onTouchMove={(e) => setTouchEndX(e.changedTouches[0].screenX)}
+  onTouchEnd={handleSwipeEnd}
   onContextMenu={(e) => {
     e.preventDefault();
     onSmartActions?.();
@@ -1424,22 +1582,87 @@ function SwipeMessageRow({ message, onOpen, onArchive, onDelete, onFollowUp, onS
         </button>
       </div>
 
-      <div className="messageQuickActions">
-        <button className="quickAction archiveActionButton" type="button" onClick={onArchive}>
-          <Archive size={15} />
-          Archive
-        </button>
+<div className="messageControlRow">
+  <div className="assignedRow">
+    <select
+      value={assignedTo || ''}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => assignMessage?.(e.target.value)}
+    >
+      <option value="">Unassigned</option>
 
-        <button className="quickAction followActionButton" type="button" onClick={onFollowUp}>
-          <Clock size={15} />
-          Follow up
-        </button>
+      {teamMembers.map((member) => (
+        <option key={member.id} value={member.id}>
+          {member.name}
+        </option>
+      ))}
+    </select>
+  </div>
 
-        <button className="quickAction deleteActionButton" type="button" onClick={onDelete}>
-          <Trash2 size={15} />
-          Delete
+  <div className="messageQuickActions">
+    <button
+      className="quickAction archiveActionButton"
+      type="button"
+      title="Archive"
+      onClick={onArchive}
+    >
+      <Archive size={15} />
+    </button>
+
+    <button
+      className="quickAction followActionButton"
+      type="button"
+      title="Follow up"
+      onClick={onFollowUp}
+    >
+      <Clock size={15} />
+    </button>
+
+    <button
+      className="quickAction deleteActionButton"
+      type="button"
+      title="Delete"
+      onClick={onDelete}
+    >
+      <Trash2 size={15} />
+    </button>
+  </div>
+</div>
+
+<div className="quickReplyDropdownWrap">
+  <button
+    className="quickReplyDropdownButton"
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      setQuickRepliesOpen(!quickRepliesOpen);
+    }}
+  >
+    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Sparkles size={15} />
+      AI Quick Replies
+    </span>
+
+    <span>{quickRepliesOpen ? '⌃' : '⌄'}</span>
+  </button>
+
+  {quickRepliesOpen && (
+    <div className="quickReplyDropdown">
+      {moreQuickReplies.map((reply) => (
+        <button
+          key={reply}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onQuickReply?.(message, reply);
+          }}
+        >
+          {reply}
         </button>
-      </div>
+      ))}
+    </div>
+  )}
+</div>
     </div>
   );
 }
@@ -1910,6 +2133,36 @@ function ContactsScreen({ people, timelines }) {
     </p>
 
     <div className="contactInsightPills">
+      <div className="relationshipSummary">
+  <div>
+    <strong>Mood</strong>
+    <span>
+      {getContactInsights(selectedTimeline).topScore >= 80
+        ? '😊 Positive'
+        : getContactInsights(selectedTimeline).topScore >= 65
+        ? '🙂 Active'
+        : '😐 Neutral'}
+    </span>
+  </div>
+
+  <div>
+    <strong>Last topic</strong>
+    <span>
+      {selectedTimeline.messages[0]?.text?.slice(0, 42) || 'No recent topic'}
+    </span>
+  </div>
+
+  <div>
+    <strong>Suggested action</strong>
+    <span>
+      {getContactInsights(selectedTimeline).followCount > 0
+        ? 'Follow up tomorrow'
+        : getContactInsights(selectedTimeline).salesCount > 0
+        ? 'Send pricing/details'
+        : 'Keep relationship warm'}
+    </span>
+  </div>
+</div>
       <span>
         {getContactInsights(selectedTimeline).topScore}% priority
       </span>

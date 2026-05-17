@@ -1990,3 +1990,1066 @@ button {
 .phoneShell.lightMode .relationshipAvatar.normal {
   border-color: rgba(16, 24, 40, 0.14);
 }
+.relationshipSummary {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.relationshipSummary div {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.045);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.relationshipSummary strong {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.relationshipSummary span {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.phoneShell.lightMode .relationshipSummary div {
+  background: #ffffff;
+  border-color: rgba(16,24,40,.08);
+}
+.teamFilterBar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 4px 0 12px;
+  scrollbar-width: none;
+}
+
+.teamFilterBar::-webkit-scrollbar {
+  display: none;
+}
+
+.teamFilterBar button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(255,255,255,.055);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.teamFilterBar button.active {
+  background: linear-gradient(135deg, #7c4dff, #5b35d5);
+  color: white;
+  border-color: transparent;
+}
+
+.assignedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.assignedRow span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.assignedRow b {
+  color: var(--text);
+}
+
+.assignedRow select {
+  max-width: 122px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.phoneShell.lightMode .teamFilterBar button,
+.phoneShell.lightMode .assignedRow select {
+  background: #ffffff;
+  color: #101828;
+  border-color: rgba(16,24,40,.1);
+}
+.messageQuickActions {
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  margin-top: 6px !important;
+}
+
+.quickAction {
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  justify-content: center !important;
+  font-size: 0 !important;
+  gap: 0 !important;
+}
+
+.quickAction svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.archiveActionButton {
+  background: rgba(124, 77, 255, 0.14) !important;
+}
+
+.followActionButton {
+  background: rgba(59, 130, 246, 0.14) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+}
+
+.deleteActionButton {
+  background: rgba(255, 77, 109, 0.12) !important;
+}
+.phoneShell.lightMode {
+  background: #f4f7fb !important;
+  color: #101828 !important;
+}
+
+/* MAIN TEXT */
+.phoneShell.lightMode h1,
+.phoneShell.lightMode h2,
+.phoneShell.lightMode h3,
+.phoneShell.lightMode h4,
+.phoneShell.lightMode strong,
+.phoneShell.lightMode p,
+.phoneShell.lightMode span,
+.phoneShell.lightMode small,
+.phoneShell.lightMode div,
+.phoneShell.lightMode button,
+.phoneShell.lightMode label {
+  color: #101828 !important;
+}
+
+/* SECONDARY TEXT */
+.phoneShell.lightMode .muted,
+.phoneShell.lightMode .subtitle,
+.phoneShell.lightMode .messageMeta,
+.phoneShell.lightMode .centerSub,
+.phoneShell.lightMode .messagePreview,
+.phoneShell.lightMode .smartActionPerson span,
+.phoneShell.lightMode .timelineBubble span,
+.phoneShell.lightMode .timelineBubble small,
+.phoneShell.lightMode .relationshipSummary strong {
+  color: #667085 !important;
+}
+
+/* CARDS */
+.phoneShell.lightMode .messageCard,
+.phoneShell.lightMode .timelineBubble,
+.phoneShell.lightMode .timelineProfileCard,
+.phoneShell.lightMode .smartMemoryCard,
+.phoneShell.lightMode .settingsCard,
+.phoneShell.lightMode .contactCard,
+.phoneShell.lightMode .timelineContactCard,
+.phoneShell.lightMode .composeSheet,
+.phoneShell.lightMode .smartActionSheet,
+.phoneShell.lightMode .messageRow {
+  background: #ffffff !important;
+  border-color: rgba(16, 24, 40, 0.08) !important;
+}
+
+/* INPUTS */
+.phoneShell.lightMode input,
+.phoneShell.lightMode textarea,
+.phoneShell.lightMode select {
+  background: #ffffff !important;
+  color: #101828 !important;
+  border: 1px solid rgba(16, 24, 40, 0.12) !important;
+}
+
+/* TOP FILTERS */
+.phoneShell.lightMode .filterChip,
+.phoneShell.lightMode .teamFilterBar button {
+  background: #ffffff !important;
+  color: #344054 !important;
+  border-color: rgba(16, 24, 40, 0.12) !important;
+}
+
+.phoneShell.lightMode .filterChip.active,
+.phoneShell.lightMode .teamFilterBar button.active {
+  background: linear-gradient(135deg, #7c4dff, #5b35d5) !important;
+  color: white !important;
+}
+
+/* BOTTOM NAV */
+.phoneShell.lightMode .bottomNav {
+  background: rgba(255,255,255,.92) !important;
+  border-top: 1px solid rgba(16,24,40,.08) !important;
+  backdrop-filter: blur(18px);
+}
+
+.phoneShell.lightMode .bottomNav button {
+  color: #667085 !important;
+}
+
+.phoneShell.lightMode .bottomNav button.active {
+  color: #5b35d5 !important;
+}
+
+/* SIDE MENU */
+.phoneShell.lightMode .sideMenu {
+  background: #ffffff !important;
+}
+
+/* TOGGLE */
+.phoneShell.lightMode .themeSlider {
+  background: #eef2ff !important;
+  border: 1px solid rgba(91,53,213,.15) !important;
+}
+
+.phoneShell.lightMode .sliderTrack {
+  background: rgba(91,53,213,.12) !important;
+}
+
+.phoneShell.lightMode .sliderThumb {
+  background: #5b35d5 !important;
+}
+
+/* MESSAGE ACTIONS */
+.phoneShell.lightMode .quickAction {
+  background: #f4f4f5 !important;
+  border-color: rgba(16,24,40,.08) !important;
+}
+
+/* MESSAGE LIST BACKGROUND */
+.phoneShell.lightMode .messageList,
+.phoneShell.lightMode .screenPage,
+.phoneShell.lightMode .inboxScreen {
+  background: transparent !important;
+}
+.messageCard {
+  padding: 8px 9px !important;
+}
+
+.messageRow {
+  padding-bottom: 6px !important;
+}
+
+.assignedRow {
+  justify-content: center !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+  padding-top: 5px !important;
+  border-top: none !important;
+}
+
+.assignedRow span {
+  display: none !important;
+}
+
+.assignedRow select {
+  max-width: 150px !important;
+  height: 26px !important;
+  padding: 3px 8px !important;
+  text-align: center !important;
+  font-size: 10px !important;
+}
+
+.messageQuickActions {
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  margin-top: -28px !important;
+  margin-right: 2px !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+.quickAction {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+.quickAction svg {
+  width: 13px !important;
+  height: 13px !important;
+}
+
+/* prettier custom tooltip */
+.quickAction {
+  position: relative !important;
+}
+
+.quickAction::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 34px;
+  right: 0;
+  background: #101828;
+  color: white;
+  padding: 5px 7px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: 0.15s ease;
+  z-index: 30;
+}
+
+.quickAction:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.phoneShell.lightMode .quickAction::after {
+  background: #101828;
+  color: white !important;
+}
+.assignedRow {
+  position: relative !important;
+  z-index: 30 !important;
+  pointer-events: auto !important;
+}
+
+.assignedRow select {
+  position: relative !important;
+  z-index: 40 !important;
+  pointer-events: auto !important;
+}
+
+.messageQuickActions {
+  z-index: 10 !important;
+  pointer-events: auto !important;
+}
+/* DARK MODE ASSIGNMENT DROPDOWN */
+.phoneShell:not(.lightMode) .assignedRow select {
+  background: #121826 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+}
+
+/* LIGHT MODE */
+.phoneShell.lightMode .assignedRow select {
+  background: #ffffff !important;
+  color: #101828 !important;
+}
+
+/* ASSIGNED LABEL */
+.assignedLabel {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: .2px;
+}
+.quickReplyBar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-top: 8px;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.quickReplyBar::-webkit-scrollbar {
+  display: none;
+}
+
+.quickReplyChip {
+  border: 1px solid rgba(124,77,255,.22);
+  background: rgba(124,77,255,.08);
+  color: #d9ccff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: .15s ease;
+}
+
+.quickReplyChip:hover {
+  background: rgba(124,77,255,.16);
+  transform: translateY(-1px);
+}
+
+.phoneShell.lightMode .quickReplyChip {
+  background: rgba(124,77,255,.08);
+  color: #5b35d5;
+}
+/* FINAL MESSAGE CARD LAYOUT FIX */
+.messageList {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.messageCard {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  padding: 8px !important;
+}
+
+.messageRow {
+  cursor: pointer !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  grid-template-columns: 30px 40px minmax(0, 1fr) 24px !important;
+}
+
+.messageRow:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124, 77, 255, 0.24) !important;
+}
+
+/* Put assignment + buttons on one professional row */
+.assignedRow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  margin-top: 6px !important;
+  padding-top: 6px !important;
+  border-top: 1px solid var(--line) !important;
+  position: relative !important;
+  z-index: 30 !important;
+}
+
+.assignedLabel {
+  display: none !important;
+}
+
+.assignedRow select {
+  max-width: 118px !important;
+  min-width: 106px !important;
+  height: 26px !important;
+  padding: 3px 7px !important;
+  font-size: 10px !important;
+  flex: 0 0 auto !important;
+}
+
+/* Move actions onto same row as assigned dropdown */
+.messageQuickActions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  margin-top: -30px !important;
+  margin-left: auto !important;
+  padding-right: 2px !important;
+  position: relative !important;
+  z-index: 20 !important;
+  width: fit-content !important;
+  float: right !important;
+}
+
+.quickAction {
+  width: 25px !important;
+  height: 25px !important;
+  min-width: 25px !important;
+  padding: 0 !important;
+}
+
+.quickAction svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* Keep quick replies from making cards too wide */
+.quickReplyBar {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+.quickReplyChip {
+  max-width: 155px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+/* MOVE ACTION BUTTONS HIGHER */
+.messageQuickActions {
+  margin-top: -38px !important;
+  margin-right: 2px !important;
+  align-items: center !important;
+}
+
+/* tighten message bottom spacing */
+.assignedRow {
+  margin-top: 2px !important;
+  padding-top: 2px !important;
+}
+
+/* reduce message height slightly */
+.messageCard {
+  padding-bottom: 4px !important;
+}
+/* SINGLE CLEAN BOTTOM ROW */
+.assignedRow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+  padding-top: 4px !important;
+  border-top: 1px solid var(--line) !important;
+  width: 100% !important;
+}
+
+/* LEFT SIDE */
+.assignedRow select {
+  max-width: 118px !important;
+  min-width: 110px !important;
+  height: 26px !important;
+  padding: 3px 8px !important;
+  font-size: 10px !important;
+  flex-shrink: 0 !important;
+}
+
+/* RIGHT SIDE ACTIONS */
+.messageQuickActions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  margin-top: 0 !important;
+  margin-left: auto !important;
+  position: static !important;
+  float: none !important;
+  width: auto !important;
+  padding-right: 0 !important;
+}
+
+/* SMALLER BUTTONS */
+.quickAction {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+}
+
+.quickAction svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+/* MOVE ACTION ROW UP UNDER MESSAGE */
+.assignedRow {
+  margin-top: -6px !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+  align-items: center !important;
+}
+
+/* keep actions aligned properly */
+.messageQuickActions {
+  margin-top: 0 !important;
+  align-items: center !important;
+}
+
+/* tighten message content spacing */
+.messageContent {
+  margin-bottom: 2px !important;
+}
+
+/* slightly reduce overall card height */
+.messageCard {
+  padding-top: 7px !important;
+  padding-bottom: 3px !important;
+}
+/* FINAL ASSIGNMENT + ACTION POSITION */
+.assignedRow {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin-top: 2px !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+  width: 100% !important;
+}
+
+.assignedRow select {
+  margin-top: 8px !important;
+}
+
+.messageQuickActions {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  align-self: flex-start !important;
+  display: flex !important;
+  gap: 5px !important;
+}
+/* PREMIUM COMPACT MESSAGE CARD LAYOUT */
+.messageCard {
+  padding: 10px !important;
+  border-radius: 24px !important;
+  background: linear-gradient(180deg, #111a31, #08111f) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22) !important;
+  overflow: hidden !important;
+}
+
+.messageRow {
+  grid-template-columns: 42px 46px minmax(0, 1fr) 32px !important;
+  gap: 10px !important;
+  padding: 8px 8px 10px !important;
+  border-radius: 20px !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  border: 1px solid rgba(148, 163, 184, 0.14) !important;
+  cursor: pointer !important;
+}
+
+.platformIcon {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+}
+
+.personAvatar {
+  width: 42px !important;
+  height: 42px !important;
+}
+
+.messageTop strong {
+  font-size: 14px !important;
+}
+
+.messageContent p {
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+  margin: 3px 0 4px !important;
+}
+
+.tinyPriorityBadge {
+  display: inline-grid !important;
+  place-items: center !important;
+  padding: 3px 7px !important;
+  margin-left: 6px !important;
+  margin-top: 0 !important;
+  font-size: 10px !important;
+  border-radius: 999px !important;
+}
+
+/* assignment/action row like your reference */
+.assignedRow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin: 10px 4px 0 !important;
+  padding-top: 10px !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+.assignedLabel {
+  display: none !important;
+}
+
+.assignedRow select {
+  width: 132px !important;
+  height: 34px !important;
+  border-radius: 16px !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  background: #07101f !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+}
+
+.messageQuickActions {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  margin: 0 !important;
+  position: static !important;
+  float: none !important;
+  width: auto !important;
+}
+
+.quickAction {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  border-radius: 50% !important;
+}
+
+.quickAction svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* quick replies on bottom */
+.quickReplyBar {
+  margin: 10px 4px 0 !important;
+  padding-top: 10px !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+.quickReplyChip {
+  height: 34px !important;
+  max-width: 170px !important;
+  padding: 0 13px !important;
+  border-radius: 999px !important;
+  background: rgba(124, 77, 255, 0.13) !important;
+  border: 1px solid rgba(124, 77, 255, 0.35) !important;
+  color: #d9ccff !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+/* light mode version */
+.phoneShell.lightMode .messageCard {
+  background: #ffffff !important;
+  border-color: rgba(16, 24, 40, 0.1) !important;
+}
+
+.phoneShell.lightMode .messageRow {
+  background: #f8faff !important;
+  border-color: rgba(16, 24, 40, 0.08) !important;
+}
+
+.phoneShell.lightMode .assignedRow select {
+  background: #ffffff !important;
+  color: #101828 !important;
+}
+
+.phoneShell.lightMode .quickReplyChip {
+  background: rgba(124, 77, 255, 0.08) !important;
+  color: #5b35d5 !important;
+}
+/* EXACT PREMIUM MESSAGE CARD LAYOUT */
+.messageCard {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 8px !important;
+  border-radius: 24px !important;
+  background: #0b1224 !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02), 0 14px 32px rgba(0,0,0,.22) !important;
+  overflow: hidden !important;
+}
+
+/* TOP MESSAGE BOX */
+.messageRow {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 42px 48px minmax(0, 1fr) 30px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  padding: 10px 10px !important;
+  border-radius: 20px !important;
+  background: #121b34 !important;
+  border: 1px solid rgba(148, 163, 184, 0.15) !important;
+  cursor: pointer !important;
+  min-height: 88px !important;
+}
+
+.messageRow:hover {
+  border-color: rgba(124, 77, 255, .42) !important;
+  transform: translateY(-1px);
+}
+
+.platformIcon {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+}
+
+.personAvatar {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+.relationshipAvatar.hot,
+.relationshipAvatar.warm {
+  box-shadow: 0 0 14px rgba(250, 204, 21, .35) !important;
+}
+
+.messageContent {
+  min-width: 0 !important;
+}
+
+.messageTop {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.messageTop strong {
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+
+.messageContent p {
+  margin: 5px 0 5px !important;
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.messageContent small {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 11px !important;
+}
+
+.tinyPriorityBadge {
+  display: inline-grid !important;
+  place-items: center !important;
+  margin-left: 6px !important;
+  margin-top: 0 !important;
+  padding: 3px 7px !important;
+  border-radius: 999px !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  background: rgba(124, 77, 255, .22) !important;
+  color: #efe7ff !important;
+}
+
+/* IMPORTANT: turn bottom section into a 2-column row */
+.assignedRow {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin: 8px 0 0 !important;
+  padding: 0 2px !important;
+  border-top: none !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+.assignedLabel {
+  display: none !important;
+}
+
+.assignedRow select {
+  width: 126px !important;
+  min-width: 126px !important;
+  height: 34px !important;
+  border-radius: 17px !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  background: #07101f !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, .22) !important;
+  outline: none !important;
+}
+
+/* ACTION BUTTONS: same line, right side */
+.messageQuickActions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  margin: -34px 4px 0 auto !important;
+  width: fit-content !important;
+  position: relative !important;
+  z-index: 6 !important;
+  float: none !important;
+}
+
+.quickAction {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 0 !important;
+}
+
+.quickAction svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* QUICK REPLIES BELOW */
+.quickReplyBar {
+  width: 100% !important;
+  display: flex !important;
+  gap: 8px !important;
+  margin: 10px 0 0 !important;
+  padding: 0 !important;
+  border-top: none !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+}
+
+.quickReplyBar::-webkit-scrollbar {
+  display: none !important;
+}
+
+.quickReplyChip {
+  height: 34px !important;
+  max-width: 176px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  background: rgba(124, 77, 255, .14) !important;
+  border: 1px solid rgba(124, 77, 255, .38) !important;
+  color: #d9ccff !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* keep dropdown usable */
+.assignedRow,
+.assignedRow select {
+  pointer-events: auto !important;
+}
+
+/* LIGHT MODE */
+.phoneShell.lightMode .messageCard {
+  background: #ffffff !important;
+  border-color: rgba(16, 24, 40, .1) !important;
+}
+
+.phoneShell.lightMode .messageRow {
+  background: #f8faff !important;
+  border-color: rgba(16, 24, 40, .08) !important;
+}
+
+.phoneShell.lightMode .assignedRow select {
+  background: #ffffff !important;
+  color: #101828 !important;
+}
+
+.phoneShell.lightMode .quickReplyChip {
+  background: rgba(124, 77, 255, .08) !important;
+  color: #5b35d5 !important;
+}
+.messageControlRow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin-top: 10px !important;
+  padding: 0 4px !important;
+}
+
+.assignedRow {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  width: auto !important;
+}
+
+.messageQuickActions {
+  margin: 0 !important;
+  position: static !important;
+  float: none !important;
+  display: flex !important;
+  gap: 8px !important;
+}
+
+.assignedRow select {
+  width: 136px !important;
+  height: 36px !important;
+  border-radius: 18px !important;
+}
+
+.quickReplyBar {
+  display: none !important;
+}
+
+.quickReplyDropdownWrap {
+  margin-top: 12px;
+  position: relative;
+}
+
+.quickReplyDropdownButton {
+  width: 100%;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 77, 255, 0.4);
+  background: rgba(124, 77, 255, 0.14);
+  color: #d9ccff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.quickReplyDropdown {
+  margin-top: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(124, 77, 255, 0.35);
+  background: #10182f;
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.quickReplyDropdown button {
+  border: none;
+  background: transparent;
+  color: #d9ccff;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.quickReplyDropdown button:hover {
+  background: rgba(124, 77, 255, 0.16);
+}
+
+.phoneShell.lightMode .quickReplyDropdown {
+  background: #ffffff;
+}
+
+.phoneShell.lightMode .quickReplyDropdownButton,
+.phoneShell.lightMode .quickReplyDropdown button {
+  color: #5b35d5 !important;
+}
+.messageRow {
+  touch-action: pan-y !important;
+}
+
+.messageCard {
+  position: relative !important;
+}
+
+.messageCard::before {
+  content: "Follow up";
+  position: absolute;
+  left: 14px;
+  top: 54px;
+  color: #93c5fd;
+  font-size: 10px;
+  font-weight: 900;
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.messageCard::after {
+  content: "Archive";
+  position: absolute;
+  right: 14px;
+  top: 54px;
+  color: #d9ccff;
+  font-size: 10px;
+  font-weight: 900;
+  opacity: 0.16;
+  pointer-events: none;
+}
